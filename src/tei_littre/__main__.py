@@ -10,6 +10,8 @@ from pathlib import Path
 from tei_littre.parse import parse_all
 from tei_littre.resolve_authors import resolve_all
 from tei_littre.classify_indents import classify_all
+from tei_littre.extract_locutions import extract_all as extract_locutions
+from tei_littre.scope_transitions import scope_all as scope_transitions
 from tei_littre.emit_tei import emit_tei
 
 
@@ -38,6 +40,18 @@ def run(source_dir: str, output_dir: str) -> None:
 	print(f"  Classified {total - unknown}/{total} ({(total-unknown)/total*100:.1f}%)")
 	for role, count in sorted(counts.items(), key=lambda x: -x[1]):
 		print(f"    {role:20} {count:6}")
+
+	print()
+	print("=" * 60)
+	print("Phase 4: Extract locutions")
+	print("=" * 60)
+	extract_locutions(entries)
+
+	print()
+	print("=" * 60)
+	print("Phase 5: Scope transitions")
+	print("=" * 60)
+	scope_transitions(entries)
 
 	print()
 	print("=" * 60)

@@ -190,6 +190,182 @@ class TestClassifyIndents:
 		classify_indent(indent)
 		assert indent.role == IndentRole.cross_reference
 
+	def test_obsolescence_vieux(self):
+		indent = Indent(content="Vieux.")
+		classify_indent(indent)
+		assert indent.role == IndentRole.register_label
+
+	def test_obsolescence_peu_usite(self):
+		indent = Indent(content="Peu usité.")
+		classify_indent(indent)
+		assert indent.role == IndentRole.register_label
+
+	def test_obsolescence_il_a_vieilli(self):
+		indent = Indent(content="Il a vieilli.")
+		classify_indent(indent)
+		assert indent.role == IndentRole.register_label
+
+	def test_short_definition_elaboration(self):
+		indent = Indent(content="Béquille.")
+		classify_indent(indent)
+		assert indent.role == IndentRole.elaboration
+
+
+# --- locution extraction tests ---
+
+class TestExtractLocutions:
+	def test_exemple_tag(self):
+		from tei_littre.extract_locutions import extract_locution
+		indent = Indent(
+			content="<exemple>Chat échaudé craint l'eau froide</exemple>, se dit de celui qui a été trompé.",
+			role=IndentRole.locution,
+		)
+		extract_locution(indent)
+		assert indent.canonical_form == "Chat échaudé craint l'eau froide"
+
+	def test_comma_split(self):
+		from tei_littre.extract_locutions import extract_locution
+		indent = Indent(
+			content="Garder la maison, rester chez soi.",
+			role=IndentRole.locution,
+		)
+		extract_locution(indent)
+		assert indent.canonical_form == "Garder la maison"
+
+	def test_reflexive_reclassified(self):
+		from tei_littre.extract_locutions import extract_locution
+		indent = Indent(
+			content="S'ABAISSER, v. réfl.",
+			role=IndentRole.locution,
+		)
+		extract_locution(indent)
+		assert indent.role == IndentRole.voice_transition
+		assert indent.canonical_form == ""
+
+	def test_no_comma_skipped(self):
+		from tei_littre.extract_locutions import extract_locution
+		indent = Indent(
+			content="Locution tombée en désuétude.",
+			role=IndentRole.locution,
+		)
+		extract_locution(indent)
+		assert indent.canonical_form == ""
+
+	def test_non_locution_ignored(self):
+		from tei_littre.extract_locutions import extract_locution
+		indent = Indent(
+			content="Some content, with comma.",
+			role=IndentRole.elaboration,
+		)
+		extract_locution(indent)
+		assert indent.canonical_form == ""
+
+
+# --- scope resolution tests ---
+
+class TestScopeTransitions:
+	def test_intra_variante_grouping(self):
+		from tei_littre.scope_transitions import scope_intra_variante, ScopeLog
+		nature = Indent(content="Absolument.", role=IndentRole.nature_label)
+		follower1 = Indent(content="Some definition.", role=IndentRole.continuation)
+		follower2 = Indent(content="Another.", role=IndentRole.elaboration)
+		earlier = Indent(content="Fig. Something.", role=IndentRole.figurative)
+		var = Variante(content="Main def.", indents=[earlier, nature, follower1, follower2])
+		log = ScopeLog()
+		scope_intra_variante(var, log)
+		assert len(var.indents) == 2
+		assert var.indents[0] == earlier
+		assert var.indents[1] == nature
+		assert len(nature.children) == 2
+		assert log.intra_grouped == 2
+
+	def test_intra_stops_at_next_transition(self):
+		from tei_littre.scope_transitions import scope_intra_variante, ScopeLog
+		t1 = Indent(content="Absolument.", role=IndentRole.nature_label)
+		f1 = Indent(content="Def one.", role=IndentRole.continuation)
+		t2 = Indent(content="Au pluriel.", role=IndentRole.nature_label)
+		f2 = Indent(content="Def two.", role=IndentRole.elaboration)
+		var = Variante(content="Main.", indents=[t1, f1, t2, f2])
+		log = ScopeLog()
+		scope_intra_variante(var, log)
+		assert len(var.indents) == 2
+		assert len(t1.children) == 1
+		assert len(t2.children) == 1
+
+	def test_inter_variante_strong(self):
+		from tei_littre.scope_transitions import scope_inter_variante, ScopeLog
+		transition = Indent(content="S'ABAISSER, v. réfl.", role=IndentRole.voice_transition)
+		v1 = Variante(content="Active sense.", num=1, indents=[transition])
+		v2 = Variante(content="Reflexive sense one.", num=2)
+		v3 = Variante(content="Reflexive sense two.", num=3)
+		entry = Entry(headword="ABAISSER", body_variantes=[v1, v2, v3])
+		log = ScopeLog()
+		scope_inter_variante(entry, log)
+		assert len(entry.body_variantes) == 2
+		assert entry.body_variantes[0].num == 1
+		assert len(entry.body_variantes[0].indents) == 0
+		container = entry.body_variantes[1]
+		assert container.transition_type == "strong"
+		assert container.transition_form == "S'ABAISSER"
+		assert container.transition_pos == "v. réfl."
+		assert len(container.sub_variantes) == 2
+		assert log.strong_scoped == 2
+
+	def test_inter_variante_medium(self):
+		from tei_littre.scope_transitions import scope_inter_variante, ScopeLog
+		transition = Indent(content="Activement.", role=IndentRole.voice_transition)
+		v1 = Variante(content="Intransitive.", num=1, indents=[transition])
+		v2 = Variante(content="Transitive sense.", num=2)
+		entry = Entry(headword="BROSSER", body_variantes=[v1, v2])
+		log = ScopeLog()
+		scope_inter_variante(entry, log)
+		container = entry.body_variantes[1]
+		assert container.transition_type == "medium"
+		assert len(container.sub_variantes) == 1
+
+	def test_inter_variante_dead(self):
+		from tei_littre.scope_transitions import scope_inter_variante, ScopeLog
+		transition = Indent(content="Au fém.", role=IndentRole.voice_transition)
+		v1 = Variante(content="Only sense.", num=1, indents=[transition])
+		entry = Entry(headword="TEST", body_variantes=[v1])
+		log = ScopeLog()
+		scope_inter_variante(entry, log)
+		assert len(entry.body_variantes) == 1
+		assert entry.body_variantes[0].indents[-1] == transition
+		assert log.zero_scope == 1
+
+	def test_strong_variant_emits_valid_xml(self):
+		from tei_littre.scope_transitions import scope_inter_variante, ScopeLog
+		transition = Indent(content="S'AIMER, v. réfl.", role=IndentRole.voice_transition)
+		v1 = Variante(content="To love.", num=1, indents=[transition])
+		v2 = Variante(content="Reflexive.", num=2)
+		entry = Entry(headword="AIMER", xml_id="aimer", body_variantes=[v1, v2])
+		log = ScopeLog()
+		scope_inter_variante(entry, log)
+		xml_str = emit_entry(entry)
+		wrapped = f'<body xmlns="http://www.tei-c.org/ns/1.0">{xml_str}</body>'
+		etree.fromstring(wrapped.encode())
+		assert 'grammaticalVariant' in xml_str
+		assert "S'AIMER" in xml_str
+
+	def test_multi_transition_scoping(self):
+		from tei_littre.scope_transitions import scope_inter_variante, ScopeLog
+		t1 = Indent(content="Activement.", role=IndentRole.voice_transition)
+		t2 = Indent(content="Neutralement.", role=IndentRole.voice_transition)
+		v1 = Variante(content="Def one.", num=1, indents=[t1])
+		v2 = Variante(content="Active sense.", num=2)
+		v3 = Variante(content="Active two.", num=3, indents=[t2])
+		v4 = Variante(content="Neutral sense.", num=4)
+		entry = Entry(headword="TEST", body_variantes=[v1, v2, v3, v4])
+		log = ScopeLog()
+		scope_inter_variante(entry, log)
+		# v1(stripped), container1([v2]), v3(stripped), container2([v4])
+		assert len(entry.body_variantes) == 4
+		assert entry.body_variantes[1].transition_type == "medium"
+		assert len(entry.body_variantes[1].sub_variantes) == 1
+		assert entry.body_variantes[3].transition_type == "medium"
+		assert len(entry.body_variantes[3].sub_variantes) == 1
+
 
 # --- markup_to_tei tests ---
 

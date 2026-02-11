@@ -83,6 +83,12 @@ class Variante:
 	citations: list[Citation] = field(default_factory=list)
 	indents: list[Indent] = field(default_factory=list)
 	rubriques: list[Rubrique] = field(default_factory=list)
+	# Phase 5: grammatical variant containers
+	sub_variantes: list[Variante] = field(default_factory=list)
+	transition_type: str = ""  # "strong" or "medium"
+	transition_form: str = ""
+	transition_pos: str = ""
+	transition_content: Markup = ""
 
 
 # --- Rubrique (back-matter sections) ---

@@ -56,11 +56,21 @@ def classify_deterministic(indent: Indent) -> bool:
 # --- Tier B: heuristic text patterns ---
 
 register_pattern = re.compile(
-	r"^(Populaire|Familière|Familièrement|Vulgaire|Vulgairement|"
+	r"^(Populaire|Familière|Familièrement|Familier|Vulgaire|Vulgairement|"
 	r"Triviale|Trivialemen|Bas|Ironiquement|Plaisamment|Burlesque|"
 	r"Poétiquement|Par euphémisme|Par exagération|Par ironie|"
 	r"Par dérision|Par extension|Par analogie|Par métaphore|"
-	r"Par plaisanterie|Par antiphrase|Néologisme)",
+	r"Par plaisanterie|Par antiphrase|Néologisme|"
+	r"Vieux|Vieilli|Inusité|Peu usité|Très peu usité|"
+	r"Hors d'usage|Tombé en désuétude|Rare|"
+	r"Il est familier|Il est vieux|Il est populaire|Il est inusité|"
+	r"Il est hors d'usage|Il n'est plus usité|"
+	r"Il a vieilli|Il vieillit|"
+	r"Ce mot est|Ce mot a vieilli|Ce sens a vieilli|"
+	r"Cet emploi vieillit|Cet emploi a vieilli|"
+	r"Mot vieilli|Mot populaire|Mot bas|Mot inusité|"
+	r"Terme vieux|Terme vieilli|Terme familier|Terme populaire|"
+	r"Terme inusité|Terme bas)",
 	re.IGNORECASE,
 )
 
@@ -163,7 +173,7 @@ def classify_heuristic(indent: Indent) -> bool:
 		return True
 
 	# Remaining text blocks are elaborations
-	if len(plain) > 20:
+	if plain:
 		indent.role = IndentRole.elaboration
 		indent.classification_method = ClassificationMethod.heuristic
 		indent.classification_confidence = 0.4

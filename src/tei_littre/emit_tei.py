@@ -111,14 +111,40 @@ def emit_indent(indent: Indent, indent_level: int = 0) -> str:
 		case IndentRole.domain | IndentRole.register_label:
 			return _sense_block(pad, content, indent.citations, indent_level)
 		case IndentRole.locution:
+			if indent.canonical_form:
+				lines = [f'{pad}<re type="locution">']
+				lines.append(f"{pad}  <form><orth>{escape(indent.canonical_form)}</orth></form>")
+				lines.append(f"{pad}  <def>{content}</def>")
+				for cit in indent.citations:
+					lines.append(emit_citation(cit, indent_level + 1))
+				lines.append(f"{pad}</re>")
+				return "\n".join(lines)
 			return _sense_block(pad, content, indent.citations, indent_level, tag="re", attrs=' type="locution"')
 		case IndentRole.proverb:
 			return _sense_block(pad, content, indent.citations, indent_level, tag="re", attrs=' type="proverb"')
 		case IndentRole.cross_reference:
 			return f'{pad}<note type="xref">{content}</note>'
 		case IndentRole.nature_label:
+			if indent.children:
+				lines = [f"{pad}<sense>"]
+				lines.append(f'{pad}  <gramGrp><gram type="pos">{content}</gram></gramGrp>')
+				for cit in indent.citations:
+					lines.append(emit_citation(cit, indent_level + 1))
+				for child in indent.children:
+					lines.append(emit_indent(child, indent_level + 1))
+				lines.append(f"{pad}</sense>")
+				return "\n".join(lines)
 			return f"{pad}<dictScrap>{content}</dictScrap>"
 		case IndentRole.voice_transition:
+			if indent.children:
+				lines = [f"{pad}<sense>"]
+				lines.append(f'{pad}  <usg type="gram">{content}</usg>')
+				for cit in indent.citations:
+					lines.append(emit_citation(cit, indent_level + 1))
+				for child in indent.children:
+					lines.append(emit_indent(child, indent_level + 1))
+				lines.append(f"{pad}</sense>")
+				return "\n".join(lines)
 			return f'{pad}<gramGrp><gram type="transition">{content}</gram></gramGrp>'
 		case _:
 			return _sense_block(pad, content, indent.citations, indent_level, children=indent.children)
@@ -126,6 +152,12 @@ def emit_indent(indent: Indent, indent_level: int = 0) -> str:
 
 def emit_variante(variante: Variante, indent_level: int = 0) -> str:
 	pad = "  " * indent_level
+
+	if variante.transition_type == "strong":
+		return _emit_strong_variant(variante, pad, indent_level)
+	if variante.transition_type == "medium":
+		return _emit_medium_variant(variante, pad, indent_level)
+
 	attrs = ""
 	if variante.num is not None:
 		attrs += f' n="{variante.num}"'
@@ -144,6 +176,26 @@ def emit_variante(variante: Variante, indent_level: int = 0) -> str:
 	for indent in variante.indents:
 		lines.append(emit_indent(indent, indent_level + 1))
 
+	lines.append(f"{pad}</sense>")
+	return "\n".join(lines)
+
+
+def _emit_strong_variant(variante: Variante, pad: str, indent_level: int) -> str:
+	lines = [f'{pad}<entry type="grammaticalVariant">']
+	lines.append(f"{pad}  <form><orth>{escape(variante.transition_form)}</orth></form>")
+	lines.append(f'{pad}  <gramGrp><gram type="pos">{escape(variante.transition_pos)}</gram></gramGrp>')
+	for sub in variante.sub_variantes:
+		lines.append(emit_variante(sub, indent_level + 1))
+	lines.append(f"{pad}</entry>")
+	return "\n".join(lines)
+
+
+def _emit_medium_variant(variante: Variante, pad: str, indent_level: int) -> str:
+	content = markup_to_tei(variante.transition_content)
+	lines = [f"{pad}<sense>"]
+	lines.append(f'{pad}  <usg type="gram">{content}</usg>')
+	for sub in variante.sub_variantes:
+		lines.append(emit_variante(sub, indent_level + 1))
 	lines.append(f"{pad}</sense>")
 	return "\n".join(lines)
 
