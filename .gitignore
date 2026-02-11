@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+data/source/
+data/littre.tei.xml
+*.egg-info/
+.venv/
+env/
+.meta
