@@ -4,7 +4,7 @@ from lxml import etree
 
 from tei_littre.model import (
 	Entry, Variante, Citation, Indent, Rubrique,
-	RubriqueType, IndentRole, ClassificationMethod,
+	RubriqueType, IndentRole, ClassificationMethod, ReviewFlag,
 )
 from tei_littre.parse import parse_file, make_xml_id
 from tei_littre.resolve_authors import resolve_authors, citations_in_order
@@ -431,3 +431,75 @@ class TestEmitTei:
 		xml_str = emit_entry(entries[0])
 		assert "LA FONT." in xml_str
 		assert "ID." not in xml_str
+
+
+# --- flag collection tests ---
+
+class TestCollectFlags:
+	def test_low_confidence_flagged(self):
+		from tei_littre.collect_flags import collect_flags
+		indent = Indent(
+			content="Something.",
+			role=IndentRole.locution,
+			classification_method=ClassificationMethod.heuristic,
+			classification_confidence=0.4,
+		)
+		entry = Entry(
+			headword="TEST", xml_id="test",
+			body_variantes=[Variante(content="Def.", indents=[indent])],
+		)
+		flags = collect_flags([entry])
+		low_conf = [f for f in flags if f.flag_type == "low_confidence"]
+		assert len(low_conf) == 1
+
+	def test_calibration_samples_generated(self):
+		from tei_littre.collect_flags import collect_flags
+		indents = [
+			Indent(
+				content=f"Def {i}.",
+				role=IndentRole.continuation,
+				classification_method=ClassificationMethod.heuristic,
+				classification_confidence=0.5,
+			)
+			for i in range(20)
+		]
+		entry = Entry(
+			headword="TEST", xml_id="test",
+			body_variantes=[Variante(content="Main.", indents=indents)],
+		)
+		flags = collect_flags([entry])
+		calibration = [f for f in flags if f.flag_type == "calibration_sample"]
+		assert len(calibration) >= 1
+
+
+# --- SQLite emitter tests ---
+
+class TestEmitSqlite:
+	def test_round_trip(self):
+		import sqlite3
+		from tei_littre.emit_sqlite import emit_sqlite
+		from tei_littre.resolve_authors import resolve_all
+		from tei_littre.classify_indents import classify_all
+		entries = _parse_sample()
+		resolve_all(entries)
+		classify_all(entries)
+		flags = [ReviewFlag(
+			entry_id="chat.1", headword="CHAT",
+			phase="test", flag_type="test_flag",
+			reason="testing",
+		)]
+		with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+			emit_sqlite(entries, flags, f.name)
+			conn = sqlite3.connect(f.name)
+			cur = conn.cursor()
+			cur.execute("SELECT COUNT(*) FROM entries")
+			assert cur.fetchone()[0] == 2
+			cur.execute("SELECT COUNT(*) FROM senses")
+			assert cur.fetchone()[0] > 0
+			cur.execute("SELECT COUNT(*) FROM citations")
+			assert cur.fetchone()[0] > 0
+			cur.execute("SELECT COUNT(*) FROM review_queue")
+			assert cur.fetchone()[0] >= 1
+			cur.execute("SELECT content_plain FROM senses_fts WHERE senses_fts MATCH 'domestique'")
+			assert len(cur.fetchall()) >= 1
+			conn.close()

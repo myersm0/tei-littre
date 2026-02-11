@@ -12,7 +12,9 @@ from tei_littre.resolve_authors import resolve_all
 from tei_littre.classify_indents import classify_all
 from tei_littre.extract_locutions import extract_all as extract_locutions
 from tei_littre.scope_transitions import scope_all as scope_transitions
+from tei_littre.collect_flags import collect_flags
 from tei_littre.emit_tei import emit_tei
+from tei_littre.emit_sqlite import emit_sqlite
 
 
 def run(source_dir: str, output_dir: str) -> None:
@@ -55,10 +57,29 @@ def run(source_dir: str, output_dir: str) -> None:
 
 	print()
 	print("=" * 60)
-	print("Phase 7: Emit TEI")
+	print("Collect review flags")
+	print("=" * 60)
+	flags = collect_flags(entries)
+	by_type = {}
+	for f in flags:
+		by_type[f.flag_type] = by_type.get(f.flag_type, 0) + 1
+	print(f"  {len(flags)} flags total")
+	for ft, count in sorted(by_type.items(), key=lambda x: -x[1]):
+		print(f"    {ft:25} {count:6}")
+
+	print()
+	print("=" * 60)
+	print("Phase 7a: Emit TEI")
 	print("=" * 60)
 	tei_path = str(out / "littre.tei.xml")
 	emit_tei(entries, tei_path)
+
+	print()
+	print("=" * 60)
+	print("Phase 7b: Emit SQLite")
+	print("=" * 60)
+	sqlite_path = str(out / "littre.db")
+	emit_sqlite(entries, flags, sqlite_path)
 
 
 if __name__ == "__main__":

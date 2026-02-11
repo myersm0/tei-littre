@@ -115,3 +115,17 @@ class Entry:
 	rubriques: list[Rubrique] = field(default_factory=list)
 	resume_text: Markup = ""
 	source_letter: str = ""
+
+
+# --- Review ---
+
+@dataclass
+class ReviewFlag:
+	entry_id: str
+	headword: str
+	phase: str
+	flag_type: str
+	reason: str
+	context: dict = field(default_factory=dict)
+	resolution: str = ""
+	resolved_by: str = ""
