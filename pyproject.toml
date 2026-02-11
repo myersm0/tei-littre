@@ -1,0 +1,15 @@
+[project]
+name = "tei-littre"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["lxml>=4.9"]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
