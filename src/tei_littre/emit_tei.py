@@ -98,16 +98,10 @@ _usg_tag_re = re.compile(r"<usg\b[^>]*>(.*?)</usg>", re.DOTALL)
 
 
 def _strip_usg_tags(s: str) -> str:
-	"""Remove <usg> wrapper tags, keeping inner text. Prevents nesting."""
 	return _usg_tag_re.sub(r"\1", s)
 
 
 def _split_label(tei_content: str) -> tuple[str, str]:
-	"""Split a leading grammar/usage label from definition content.
-
-	Returns (lowercased_label_text, remaining_def_content).
-	Label text has all usg/gramGrp wrappers stripped (just the text).
-	If no leading tag found, returns (all_content_lowercased, '')."""
 	m = _leading_gramgrp_re.match(tei_content)
 	if m:
 		label = _strip_usg_tags(m.group(1).strip()).lower()
@@ -131,9 +125,6 @@ _leading_usg_full_re = re.compile(
 
 
 def _split_def_usg(tei_content: str) -> tuple[list[str], str]:
-	"""Pull leading <usg> elements out of definition content.
-
-	Returns (list_of_usg_elements, remaining_def_text)."""
 	usg_elements: list[str] = []
 	remaining = tei_content
 	while True:
@@ -143,6 +134,10 @@ def _split_def_usg(tei_content: str) -> tuple[list[str], str]:
 		usg_elements.append(_lowercase_text_nodes(m.group(1)))
 		remaining = remaining[m.end():].strip()
 	return usg_elements, remaining
+
+
+def _id_attr(sense_id: str) -> str:
+	return f' xml:id="{escape(sense_id)}"' if sense_id else ""
 
 
 # --- Emission helpers ---
@@ -180,10 +175,11 @@ def _emit_label_sense(
 	citations: list[Citation],
 	children: list[Indent],
 	indent_level: int,
+	sense_id: str = "",
 	sense_attrs: str = "",
 ) -> str:
 	label = _strip_usg_tags(label)
-	lines = [f"{pad}<sense{sense_attrs}>"]
+	lines = [f"{pad}<sense{_id_attr(sense_id)}{sense_attrs}>"]
 	lines.append(f'{pad}  <usg type="{usg_type}">{label}</usg>')
 	if def_text:
 		usg_els, clean_def = _split_def_usg(def_text)
@@ -192,13 +188,16 @@ def _emit_label_sense(
 		if clean_def:
 			lines.append(f"{pad}  <def>{clean_def}</def>")
 	lines.extend(_emit_citations(citations, indent_level + 1))
+	child_counter = 0
 	for child in children:
-		lines.append(emit_indent(child, indent_level + 1))
+		child_counter += 1
+		child_id = f"{sense_id}.{child_counter}" if sense_id else ""
+		lines.append(emit_indent(child, indent_level + 1, sense_id=child_id))
 	lines.append(f"{pad}</sense>")
 	return "\n".join(lines)
 
 
-def emit_indent(indent: Indent, indent_level: int = 0) -> str:
+def emit_indent(indent: Indent, indent_level: int = 0, sense_id: str = "") -> str:
 	pad = "  " * indent_level
 	content = markup_to_tei(indent.content)
 
@@ -208,7 +207,7 @@ def emit_indent(indent: Indent, indent_level: int = 0) -> str:
 			return _emit_label_sense(
 				pad, label, "sem", def_text,
 				indent.citations, indent.children, indent_level,
-				sense_attrs=' type="figuré"',
+				sense_id=sense_id, sense_attrs=' type="figuré"',
 			)
 
 		case IndentRole.domain:
@@ -217,16 +216,20 @@ def emit_indent(indent: Indent, indent_level: int = 0) -> str:
 				return _emit_label_sense(
 					pad, label, "domain", def_text,
 					indent.citations, indent.children, indent_level,
+					sense_id=sense_id,
 				)
 			usg_els, clean_def = _split_def_usg(content)
-			lines = [f"{pad}<sense>"]
+			lines = [f"{pad}<sense{_id_attr(sense_id)}>"]
 			for usg_el in usg_els:
 				lines.append(f"{pad}  {usg_el}")
 			if clean_def:
 				lines.append(f"{pad}  <def>{clean_def}</def>")
 			lines.extend(_emit_citations(indent.citations, indent_level + 1))
+			child_counter = 0
 			for child in indent.children:
-				lines.append(emit_indent(child, indent_level + 1))
+				child_counter += 1
+				child_id = f"{sense_id}.{child_counter}" if sense_id else ""
+				lines.append(emit_indent(child, indent_level + 1, sense_id=child_id))
 			lines.append(f"{pad}</sense>")
 			return "\n".join(lines)
 
@@ -235,6 +238,7 @@ def emit_indent(indent: Indent, indent_level: int = 0) -> str:
 			return _emit_label_sense(
 				pad, label, "register", def_text,
 				indent.citations, indent.children, indent_level,
+				sense_id=sense_id,
 			)
 
 		case IndentRole.locution:
@@ -262,6 +266,7 @@ def emit_indent(indent: Indent, indent_level: int = 0) -> str:
 				return _emit_label_sense(
 					pad, label, "gram", def_text,
 					indent.citations, indent.children, indent_level,
+					sense_id=sense_id,
 				)
 			return f'{pad}<usg type="gram">{label}</usg>'
 
@@ -271,32 +276,36 @@ def emit_indent(indent: Indent, indent_level: int = 0) -> str:
 				return _emit_label_sense(
 					pad, label, "gram", def_text,
 					indent.citations, indent.children, indent_level,
+					sense_id=sense_id,
 				)
 			return f'{pad}<usg type="gram">{label}</usg>'
 
 		case _:
 			usg_els, clean_def = _split_def_usg(content)
-			lines = [f"{pad}<sense>"]
+			lines = [f"{pad}<sense{_id_attr(sense_id)}>"]
 			for usg_el in usg_els:
 				lines.append(f"{pad}  {usg_el}")
 			if clean_def:
 				lines.append(f"{pad}  <def>{clean_def}</def>")
 			lines.extend(_emit_citations(indent.citations, indent_level + 1))
+			child_counter = 0
 			for child in indent.children:
-				lines.append(emit_indent(child, indent_level + 1))
+				child_counter += 1
+				child_id = f"{sense_id}.{child_counter}" if sense_id else ""
+				lines.append(emit_indent(child, indent_level + 1, sense_id=child_id))
 			lines.append(f"{pad}</sense>")
 			return "\n".join(lines)
 
 
-def emit_variante(variante: Variante, indent_level: int = 0) -> str:
+def emit_variante(variante: Variante, indent_level: int = 0, sense_id: str = "") -> str:
 	pad = "  " * indent_level
 
 	if variante.transition_type == "strong":
-		return _emit_strong_variant(variante, pad, indent_level)
+		return _emit_strong_variant(variante, pad, indent_level, sense_id)
 	if variante.transition_type == "medium":
-		return _emit_medium_variant(variante, pad, indent_level)
+		return _emit_medium_variant(variante, pad, indent_level, sense_id)
 
-	attrs = ""
+	attrs = _id_attr(sense_id)
 	if variante.num is not None:
 		attrs += f' n="{variante.num}"'
 	if variante.is_supplement:
@@ -314,8 +323,11 @@ def emit_variante(variante: Variante, indent_level: int = 0) -> str:
 
 	lines.extend(_emit_citations(variante.citations, indent_level + 1))
 
+	child_counter = 0
 	for indent in variante.indents:
-		lines.append(emit_indent(indent, indent_level + 1))
+		child_counter += 1
+		child_id = f"{sense_id}.{child_counter}" if sense_id else ""
+		lines.append(emit_indent(indent, indent_level + 1, sense_id=child_id))
 
 	for rubrique in variante.rubriques:
 		emitted = emit_rubrique(rubrique, indent_level + 1)
@@ -326,22 +338,24 @@ def emit_variante(variante: Variante, indent_level: int = 0) -> str:
 	return "\n".join(lines)
 
 
-def _emit_strong_variant(variante: Variante, pad: str, indent_level: int) -> str:
+def _emit_strong_variant(variante: Variante, pad: str, indent_level: int, sense_id: str) -> str:
 	lines = [f'{pad}<entry type="grammaticalVariant">']
 	lines.append(f"{pad}  <form><orth>{escape(variante.transition_form)}</orth></form>")
 	lines.append(f'{pad}  <gramGrp><gram type="pos">{escape(variante.transition_pos)}</gram></gramGrp>')
-	for sub in variante.sub_variantes:
-		lines.append(emit_variante(sub, indent_level + 1))
+	for i, sub in enumerate(variante.sub_variantes, 1):
+		sub_id = f"{sense_id}.{i}" if sense_id else ""
+		lines.append(emit_variante(sub, indent_level + 1, sense_id=sub_id))
 	lines.append(f"{pad}</entry>")
 	return "\n".join(lines)
 
 
-def _emit_medium_variant(variante: Variante, pad: str, indent_level: int) -> str:
+def _emit_medium_variant(variante: Variante, pad: str, indent_level: int, sense_id: str) -> str:
 	label = _lowercase_text_nodes(markup_to_tei(variante.transition_content))
-	lines = [f"{pad}<sense>"]
+	lines = [f"{pad}<sense{_id_attr(sense_id)}>"]
 	lines.append(f'{pad}  <usg type="gram">{label}</usg>')
-	for sub in variante.sub_variantes:
-		lines.append(emit_variante(sub, indent_level + 1))
+	for i, sub in enumerate(variante.sub_variantes, 1):
+		sub_id = f"{sense_id}.{i}" if sense_id else ""
+		lines.append(emit_variante(sub, indent_level + 1, sense_id=sub_id))
 	lines.append(f"{pad}</sense>")
 	return "\n".join(lines)
 
@@ -422,8 +436,11 @@ def emit_entry(entry: Entry, indent_level: int = 0) -> str:
 	if entry.resume_text:
 		lines.append(f'{pad}  <note type="résumé">[see source]</note>')
 
+	sense_counter = 0
 	for variante in entry.body_variantes:
-		lines.append(emit_variante(variante, indent_level + 1))
+		sense_counter += 1
+		sense_id = f"{xml_id}_s{sense_counter}"
+		lines.append(emit_variante(variante, indent_level + 1, sense_id=sense_id))
 
 	for rubrique in entry.rubriques:
 		emitted = emit_rubrique(rubrique, indent_level + 1)
