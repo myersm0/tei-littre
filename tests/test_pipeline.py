@@ -9,7 +9,7 @@ from tei_littre.model import (
 from tei_littre.parse import parse_file, make_xml_id
 from tei_littre.resolve_authors import resolve_authors, citations_in_order
 from tei_littre.classify_indents import classify_indent
-from tei_littre.emit_tei import markup_to_tei, emit_entry, emit_tei
+from tei_littre.emit_tei import markup_to_tei, emit_entry, emit_tei, _split_label, _split_def_usg
 
 
 sample_xml = """\
@@ -372,11 +372,11 @@ class TestScopeTransitions:
 class TestMarkupToTei:
 	def test_domain(self):
 		result = markup_to_tei('<semantique type="domaine">Marine.</semantique>')
-		assert result == '<usg type="domain">Marine.</usg>'
+		assert result == '<usg type="domain">marine.</usg>'
 
 	def test_indicateur(self):
 		result = markup_to_tei('<semantique type="indicateur">Fig.</semantique>')
-		assert result == '<usg type="hint">Fig.</usg>'
+		assert result == '<usg type="sem">fig.</usg>'
 
 	def test_cross_ref(self):
 		result = markup_to_tei('<a ref="chat">CHAT</a>')
@@ -398,8 +398,54 @@ class TestMarkupToTei:
 		result = markup_to_tei(
 			'<semantique type="domaine">Bot.</semantique> <i>Rosa</i>, genre de plantes.'
 		)
-		assert '<usg type="domain">Bot.</usg>' in result
+		assert '<usg type="domain">bot.</usg>' in result
 		assert "<mentioned>Rosa</mentioned>" in result
+
+
+class TestLabelSplitting:
+	def test_split_leading_usg(self):
+		label, rest = _split_label('<usg type="sem">fig.</usg> Le serpent de l\'envie')
+		assert label == "fig."
+		assert "serpent" in rest
+
+	def test_split_leading_gramgrp(self):
+		label, rest = _split_label('<gramGrp><gram type="pos">S. m.</gram></gramGrp> Linge damassé.')
+		assert label == "s. m."
+		assert "Linge" in rest
+
+	def test_split_bare_fig(self):
+		label, rest = _split_label("Fig. Le serpent")
+		assert label == "fig."
+		assert "serpent" in rest
+
+	def test_split_no_label(self):
+		label, rest = _split_label("Just a definition.")
+		assert rest == ""
+
+	def test_split_strips_nested_usg(self):
+		label, _ = _split_label('à la débandade, <usg type="gram">loc. adv.</usg> sans ordre')
+		assert "<usg" not in label
+		assert "loc. adv." in label
+
+	def test_def_usg_extraction(self):
+		usg_els, rest = _split_def_usg(
+			'<usg type="domain">terme de marine.</usg> Grappin à quatre branches.'
+		)
+		assert len(usg_els) == 1
+		assert "domain" in usg_els[0]
+		assert "Grappin" in rest
+
+	def test_def_usg_multiple(self):
+		usg_els, rest = _split_def_usg(
+			'<usg type="sem">fig.</usg> <usg type="register">familièrement.</usg> Some def.'
+		)
+		assert len(usg_els) == 2
+		assert "Some def." in rest
+
+	def test_def_usg_none(self):
+		usg_els, rest = _split_def_usg("Plain definition text.")
+		assert len(usg_els) == 0
+		assert rest == "Plain definition text."
 
 
 # --- TEI emission round-trip ---
@@ -431,6 +477,100 @@ class TestEmitTei:
 		xml_str = emit_entry(entries[0])
 		assert "LA FONT." in xml_str
 		assert "ID." not in xml_str
+
+	def test_sense_ids_present(self):
+		entries = _parse_sample()
+		from tei_littre.resolve_authors import resolve_all
+		from tei_littre.classify_indents import classify_all
+		resolve_all(entries)
+		classify_all(entries)
+		xml_str = emit_entry(entries[0])
+		assert 'xml:id="chat.1_s1"' in xml_str
+		assert 'xml:id="chat.1_s2"' in xml_str
+
+	def test_sense_ids_unique(self):
+		entries = _parse_sample()
+		from tei_littre.resolve_authors import resolve_all
+		from tei_littre.classify_indents import classify_all
+		resolve_all(entries)
+		classify_all(entries)
+		with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False, encoding="utf-8") as f:
+			emit_tei(entries, f.name)
+			tree = etree.parse(f.name)
+			all_ids = [el.get("{http://www.w3.org/XML/1998/namespace}id")
+				for el in tree.getroot().iter() if el.get("{http://www.w3.org/XML/1998/namespace}id")]
+			assert len(all_ids) == len(set(all_ids))
+
+	def test_subsense_ids_hierarchical(self):
+		entries = _parse_sample()
+		from tei_littre.resolve_authors import resolve_all
+		from tei_littre.classify_indents import classify_all
+		resolve_all(entries)
+		classify_all(entries)
+		xml_str = emit_entry(entries[0])
+		assert 'xml:id="chat.1_s1.1"' in xml_str
+
+	def test_no_nested_usg(self):
+		entries = _parse_sample()
+		from tei_littre.resolve_authors import resolve_all
+		from tei_littre.classify_indents import classify_all
+		resolve_all(entries)
+		classify_all(entries)
+		with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False, encoding="utf-8") as f:
+			emit_tei(entries, f.name)
+			tree = etree.parse(f.name)
+			ns = {"t": "http://www.tei-c.org/ns/1.0"}
+			nested = tree.getroot().findall(".//t:usg//t:usg", ns)
+			assert len(nested) == 0
+
+	def test_no_gramgrp_in_def(self):
+		entries = _parse_sample()
+		from tei_littre.resolve_authors import resolve_all
+		from tei_littre.classify_indents import classify_all
+		resolve_all(entries)
+		classify_all(entries)
+		with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False, encoding="utf-8") as f:
+			emit_tei(entries, f.name)
+			tree = etree.parse(f.name)
+			ns = {"t": "http://www.tei-c.org/ns/1.0"}
+			bad = tree.getroot().findall(".//t:def//t:gramGrp", ns)
+			assert len(bad) == 0
+
+	def test_gramgrp_only_at_entry_level(self):
+		entries = _parse_sample()
+		from tei_littre.resolve_authors import resolve_all
+		from tei_littre.classify_indents import classify_all
+		resolve_all(entries)
+		classify_all(entries)
+		with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False, encoding="utf-8") as f:
+			emit_tei(entries, f.name)
+			tree = etree.parse(f.name)
+			ns = {"t": "http://www.tei-c.org/ns/1.0"}
+			for gramgrp in tree.getroot().iter("{http://www.tei-c.org/ns/1.0}gramGrp"):
+				parent_tag = gramgrp.getparent().tag.split("}")[-1]
+				assert parent_tag == "entry"
+
+	def test_domain_usg_split_from_def(self):
+		entries = _parse_sample()
+		from tei_littre.resolve_authors import resolve_all
+		from tei_littre.classify_indents import classify_all
+		resolve_all(entries)
+		classify_all(entries)
+		xml_str = emit_entry(entries[0])
+		wrapped = f'<body xmlns="http://www.tei-c.org/ns/1.0">{xml_str}</body>'
+		tree = etree.fromstring(wrapped.encode())
+		ns = {"t": "http://www.tei-c.org/ns/1.0"}
+		usg_in_def = tree.findall(".//t:def//t:usg", ns)
+		domain_in_def = [u for u in usg_in_def if u.get("type") == "domain"]
+		assert len(domain_in_def) == 0
+
+	def test_usg_content_lowercase(self):
+		result = markup_to_tei('<semantique type="indicateur">Familièrement.</semantique>')
+		assert result == '<usg type="sem">familièrement.</usg>'
+
+	def test_nature_becomes_usg_gram(self):
+		result = markup_to_tei('<nature>S. m.</nature>')
+		assert result == '<usg type="gram">s. m.</usg>'
 
 
 # --- flag collection tests ---
