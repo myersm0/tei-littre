@@ -232,7 +232,7 @@ def split_tei_sections(xml_text):
 
 			new_label = None
 
-			m = re.match(r'<sense\s+n="(\d+)"', stripped)
+			m = re.match(r'<sense\s[^>]*\bn="(\d+)"', stripped)
 			if m:
 				new_label = f"sense-{m.group(1)}"
 
