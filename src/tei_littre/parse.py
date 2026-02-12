@@ -80,7 +80,7 @@ def extract_content(
 		if child.tail:
 			content_parts.append(xml_escape(child.tail))
 
-	content = "".join(content_parts).strip()
+	content = " ".join("".join(content_parts).split())
 	return content, citations, indents, rubriques, variantes
 
 
