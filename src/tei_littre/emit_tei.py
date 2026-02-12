@@ -49,11 +49,11 @@ FOOTER = """</body>
 
 markup_substitutions = [
 	(r'<semantique type="domaine">(.*?)</semantique>', r'<usg type="domain">\1</usg>'),
-	(r'<semantique type="indicateur">(.*?)</semantique>', r'<usg type="hint">\1</usg>'),
-	(r'<semantique>(.*?)</semantique>', r'<usg>\1</usg>'),
+	(r'<semantique type="indicateur">(.*?)</semantique>', r'<usg type="sem">\1</usg>'),
+	(r'<semantique>(.*?)</semantique>', r'<usg type="sem">\1</usg>'),
 	(r'<a ref="([^"]*)">(.*?)</a>', r'<xr><ref target="#\1">\2</ref></xr>'),
 	(r'<exemple>(.*?)</exemple>', r'<mentioned>\1</mentioned>'),
-	(r'<nature>(.*?)</nature>', r'<gramGrp><gram type="pos">\1</gram></gramGrp>'),
+	(r'<nature>(.*?)</nature>', r'<usg type="gram">\1</usg>'),
 	(r'<i lang="la">(.*?)</i>', r'<foreign xml:lang="la">\1</foreign>'),
 	(r"<i>(.*?)</i>", r"<mentioned>\1</mentioned>"),
 ]
@@ -65,9 +65,87 @@ def strip_tags(markup: str) -> str:
 	return re.sub(r"<[^>]+>", "", markup).strip()
 
 
-def markup_to_tei(markup: Markup) -> str:
-	return reduce(lambda text, sub: sub[0].sub(sub[1], text), compiled_substitutions, markup)
+_usg_content_re = re.compile(r"(<usg\b[^>]*>)(.*?)(</usg>)", re.DOTALL)
 
+
+def _lowercase_usg_content(m: re.Match) -> str:
+	return m.group(1) + m.group(2).lower() + m.group(3)
+
+
+def markup_to_tei(markup: Markup) -> str:
+	result = reduce(lambda text, sub: sub[0].sub(sub[1], text), compiled_substitutions, markup)
+	return _usg_content_re.sub(_lowercase_usg_content, result)
+
+
+# --- Label splitting and normalization ---
+
+_leading_gramgrp_re = re.compile(
+	r"^<gramGrp><gram\b[^>]*>(.*?)</gram></gramGrp>\s*", re.DOTALL
+)
+_leading_usg_re = re.compile(
+	r"^<usg\b[^>]*>(.*?)</usg>\s*", re.DOTALL
+)
+_leading_fig_re = re.compile(r"^Fig\.\s*")
+_leading_punct_re = re.compile(r"^[,;:\s]+")
+
+
+def _lowercase_text_nodes(s: str) -> str:
+	parts = re.split(r"(<[^>]+>)", s)
+	return "".join(part if part.startswith("<") else part.lower() for part in parts)
+
+
+_usg_tag_re = re.compile(r"<usg\b[^>]*>(.*?)</usg>", re.DOTALL)
+
+
+def _strip_usg_tags(s: str) -> str:
+	"""Remove <usg> wrapper tags, keeping inner text. Prevents nesting."""
+	return _usg_tag_re.sub(r"\1", s)
+
+
+def _split_label(tei_content: str) -> tuple[str, str]:
+	"""Split a leading grammar/usage label from definition content.
+
+	Returns (lowercased_label_text, remaining_def_content).
+	Label text has all usg/gramGrp wrappers stripped (just the text).
+	If no leading tag found, returns (all_content_lowercased, '')."""
+	m = _leading_gramgrp_re.match(tei_content)
+	if m:
+		label = _strip_usg_tags(m.group(1).strip()).lower()
+		remaining = _leading_punct_re.sub("", tei_content[m.end():]).strip()
+		return label, remaining
+	m = _leading_usg_re.match(tei_content)
+	if m:
+		label = _lowercase_text_nodes(_strip_usg_tags(m.group(1).strip()))
+		remaining = _leading_punct_re.sub("", tei_content[m.end():]).strip()
+		return label, remaining
+	m = _leading_fig_re.match(tei_content)
+	if m:
+		remaining = _leading_punct_re.sub("", tei_content[m.end():]).strip()
+		return "fig.", remaining
+	return _lowercase_text_nodes(_strip_usg_tags(tei_content)), ""
+
+
+_leading_usg_full_re = re.compile(
+	r"^(<usg\b[^>]*>.*?</usg>)[,;:\s]*", re.DOTALL
+)
+
+
+def _split_def_usg(tei_content: str) -> tuple[list[str], str]:
+	"""Pull leading <usg> elements out of definition content.
+
+	Returns (list_of_usg_elements, remaining_def_text)."""
+	usg_elements: list[str] = []
+	remaining = tei_content
+	while True:
+		m = _leading_usg_full_re.match(remaining)
+		if not m:
+			break
+		usg_elements.append(_lowercase_text_nodes(m.group(1)))
+		remaining = remaining[m.end():].strip()
+	return usg_elements, remaining
+
+
+# --- Emission helpers ---
 
 def emit_citation(citation: Citation, indent_level: int = 0) -> str:
 	pad = "  " * indent_level
@@ -94,23 +172,58 @@ def _emit_citations(citations: list[Citation], indent_level: int) -> list[str]:
 	return [emit_citation(cit, indent_level) for cit in citations]
 
 
+def _emit_label_sense(
+	pad: str,
+	label: str,
+	usg_type: str,
+	def_text: str,
+	citations: list[Citation],
+	children: list[Indent],
+	indent_level: int,
+	sense_attrs: str = "",
+) -> str:
+	label = _strip_usg_tags(label)
+	lines = [f"{pad}<sense{sense_attrs}>"]
+	lines.append(f'{pad}  <usg type="{usg_type}">{label}</usg>')
+	if def_text:
+		usg_els, clean_def = _split_def_usg(def_text)
+		for usg_el in usg_els:
+			lines.append(f"{pad}  {usg_el}")
+		if clean_def:
+			lines.append(f"{pad}  <def>{clean_def}</def>")
+	lines.extend(_emit_citations(citations, indent_level + 1))
+	for child in children:
+		lines.append(emit_indent(child, indent_level + 1))
+	lines.append(f"{pad}</sense>")
+	return "\n".join(lines)
+
+
 def emit_indent(indent: Indent, indent_level: int = 0) -> str:
 	pad = "  " * indent_level
 	content = markup_to_tei(indent.content)
 
 	match indent.role:
 		case IndentRole.figurative:
-			lines = [f'{pad}<sense type="figuré">']
-			lines.append(f"{pad}  <def>{content}</def>")
-			lines.extend(_emit_citations(indent.citations, indent_level + 1))
-			for child in indent.children:
-				lines.append(emit_indent(child, indent_level + 1))
-			lines.append(f"{pad}</sense>")
-			return "\n".join(lines)
+			label, def_text = _split_label(content)
+			return _emit_label_sense(
+				pad, label, "sem", def_text,
+				indent.citations, indent.children, indent_level,
+				sense_attrs=' type="figuré"',
+			)
 
 		case IndentRole.domain:
+			label, def_text = _split_label(content)
+			if label and def_text:
+				return _emit_label_sense(
+					pad, label, "domain", def_text,
+					indent.citations, indent.children, indent_level,
+				)
+			usg_els, clean_def = _split_def_usg(content)
 			lines = [f"{pad}<sense>"]
-			lines.append(f"{pad}  <def>{content}</def>")
+			for usg_el in usg_els:
+				lines.append(f"{pad}  {usg_el}")
+			if clean_def:
+				lines.append(f"{pad}  <def>{clean_def}</def>")
 			lines.extend(_emit_citations(indent.citations, indent_level + 1))
 			for child in indent.children:
 				lines.append(emit_indent(child, indent_level + 1))
@@ -118,13 +231,11 @@ def emit_indent(indent: Indent, indent_level: int = 0) -> str:
 			return "\n".join(lines)
 
 		case IndentRole.register_label:
-			lines = [f"{pad}<sense>"]
-			lines.append(f'{pad}  <usg type="register">{content}</usg>')
-			lines.extend(_emit_citations(indent.citations, indent_level + 1))
-			for child in indent.children:
-				lines.append(emit_indent(child, indent_level + 1))
-			lines.append(f"{pad}</sense>")
-			return "\n".join(lines)
+			label, def_text = _split_label(content)
+			return _emit_label_sense(
+				pad, label, "register", def_text,
+				indent.citations, indent.children, indent_level,
+			)
 
 		case IndentRole.locution:
 			lines = [f'{pad}<re type="locution">']
@@ -146,30 +257,30 @@ def emit_indent(indent: Indent, indent_level: int = 0) -> str:
 			return f'{pad}<note type="xref">{content}</note>'
 
 		case IndentRole.nature_label:
-			if indent.children:
-				lines = [f"{pad}<sense>"]
-				lines.append(f'{pad}  <usg type="gram">{content}</usg>')
-				lines.extend(_emit_citations(indent.citations, indent_level + 1))
-				for child in indent.children:
-					lines.append(emit_indent(child, indent_level + 1))
-				lines.append(f"{pad}</sense>")
-				return "\n".join(lines)
-			return f'{pad}<usg type="gram">{content}</usg>'
+			label, def_text = _split_label(content)
+			if indent.children or def_text or indent.citations:
+				return _emit_label_sense(
+					pad, label, "gram", def_text,
+					indent.citations, indent.children, indent_level,
+				)
+			return f'{pad}<usg type="gram">{label}</usg>'
 
 		case IndentRole.voice_transition:
-			if indent.children:
-				lines = [f"{pad}<sense>"]
-				lines.append(f'{pad}  <usg type="gram">{content}</usg>')
-				lines.extend(_emit_citations(indent.citations, indent_level + 1))
-				for child in indent.children:
-					lines.append(emit_indent(child, indent_level + 1))
-				lines.append(f"{pad}</sense>")
-				return "\n".join(lines)
-			return f'{pad}<usg type="gram">{content}</usg>'
+			label, def_text = _split_label(content)
+			if indent.children or def_text or indent.citations:
+				return _emit_label_sense(
+					pad, label, "gram", def_text,
+					indent.citations, indent.children, indent_level,
+				)
+			return f'{pad}<usg type="gram">{label}</usg>'
 
 		case _:
+			usg_els, clean_def = _split_def_usg(content)
 			lines = [f"{pad}<sense>"]
-			lines.append(f"{pad}  <def>{content}</def>")
+			for usg_el in usg_els:
+				lines.append(f"{pad}  {usg_el}")
+			if clean_def:
+				lines.append(f"{pad}  <def>{clean_def}</def>")
 			lines.extend(_emit_citations(indent.citations, indent_level + 1))
 			for child in indent.children:
 				lines.append(emit_indent(child, indent_level + 1))
@@ -195,7 +306,11 @@ def emit_variante(variante: Variante, indent_level: int = 0) -> str:
 
 	if variante.content:
 		content = markup_to_tei(variante.content)
-		lines.append(f"{pad}  <def>{content}</def>")
+		usg_els, clean_def = _split_def_usg(content)
+		for usg_el in usg_els:
+			lines.append(f"{pad}  {usg_el}")
+		if clean_def:
+			lines.append(f"{pad}  <def>{clean_def}</def>")
 
 	lines.extend(_emit_citations(variante.citations, indent_level + 1))
 
@@ -222,9 +337,9 @@ def _emit_strong_variant(variante: Variante, pad: str, indent_level: int) -> str
 
 
 def _emit_medium_variant(variante: Variante, pad: str, indent_level: int) -> str:
-	content = markup_to_tei(variante.transition_content)
+	label = _lowercase_text_nodes(markup_to_tei(variante.transition_content))
 	lines = [f"{pad}<sense>"]
-	lines.append(f'{pad}  <usg type="gram">{content}</usg>')
+	lines.append(f'{pad}  <usg type="gram">{label}</usg>')
 	for sub in variante.sub_variantes:
 		lines.append(emit_variante(sub, indent_level + 1))
 	lines.append(f"{pad}</sense>")
