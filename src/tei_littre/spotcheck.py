@@ -34,7 +34,7 @@ def normalize_key(s):
 	)
 
 
-INDEX_VERSION = 2
+INDEX_VERSION = 3
 
 
 def build_index(source_dir, tei_file):
@@ -237,15 +237,15 @@ def split_tei_sections(xml_text):
 				new_label = f"sense-{m.group(1)}"
 
 			if not new_label:
-				m = re.match(r'<note\s+type="([\w\x80-\xff]+)"', stripped)
+				m = re.match(r'<note\s+type="([^"]+)"', stripped)
 				if m:
 					new_label = m.group(1)
 
 			if not new_label and (stripped.startswith("<etym>") or stripped.startswith("<etym ")):
-				new_label = "etymology"
+				new_label = "étymologie"
 
 			if not new_label:
-				m = re.match(r'<re\s+type="([\w\x80-\xff]+)"', stripped)
+				m = re.match(r'<re\s+type="([^"]+)"', stripped)
 				if m:
 					new_label = m.group(1)
 

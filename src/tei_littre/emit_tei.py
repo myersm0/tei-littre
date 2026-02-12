@@ -69,17 +69,6 @@ def markup_to_tei(markup: Markup) -> str:
 	return reduce(lambda text, sub: sub[0].sub(sub[1], text), compiled_substitutions, markup)
 
 
-def _sense_block(pad: str, content: str, citations: list[Citation], indent_level: int, *, tag: str = "sense", attrs: str = "", children: list[Indent] | None = None) -> str:
-	lines = [f"{pad}<{tag}{attrs}>"]
-	lines.append(f"{pad}  <def>{content}</def>")
-	for cit in citations:
-		lines.append(emit_citation(cit, indent_level + 1))
-	for child in (children or []):
-		lines.append(emit_indent(child, indent_level + 1))
-	lines.append(f"{pad}</{tag}>")
-	return "\n".join(lines)
-
-
 def emit_citation(citation: Citation, indent_level: int = 0) -> str:
 	pad = "  " * indent_level
 	author = citation.resolved_author or citation.author
@@ -101,53 +90,91 @@ def emit_citation(citation: Citation, indent_level: int = 0) -> str:
 	return "\n".join(lines)
 
 
+def _emit_citations(citations: list[Citation], indent_level: int) -> list[str]:
+	return [emit_citation(cit, indent_level) for cit in citations]
+
+
 def emit_indent(indent: Indent, indent_level: int = 0) -> str:
 	pad = "  " * indent_level
 	content = markup_to_tei(indent.content)
 
 	match indent.role:
 		case IndentRole.figurative:
-			return _sense_block(pad, content, indent.citations, indent_level, attrs=' type="figurative"')
-		case IndentRole.domain | IndentRole.register_label:
-			return _sense_block(pad, content, indent.citations, indent_level)
+			lines = [f'{pad}<sense type="figuré">']
+			lines.append(f"{pad}  <def>{content}</def>")
+			lines.extend(_emit_citations(indent.citations, indent_level + 1))
+			for child in indent.children:
+				lines.append(emit_indent(child, indent_level + 1))
+			lines.append(f"{pad}</sense>")
+			return "\n".join(lines)
+
+		case IndentRole.domain:
+			lines = [f"{pad}<sense>"]
+			lines.append(f"{pad}  <def>{content}</def>")
+			lines.extend(_emit_citations(indent.citations, indent_level + 1))
+			for child in indent.children:
+				lines.append(emit_indent(child, indent_level + 1))
+			lines.append(f"{pad}</sense>")
+			return "\n".join(lines)
+
+		case IndentRole.register_label:
+			lines = [f"{pad}<sense>"]
+			lines.append(f'{pad}  <usg type="register">{content}</usg>')
+			lines.extend(_emit_citations(indent.citations, indent_level + 1))
+			for child in indent.children:
+				lines.append(emit_indent(child, indent_level + 1))
+			lines.append(f"{pad}</sense>")
+			return "\n".join(lines)
+
 		case IndentRole.locution:
+			lines = [f'{pad}<re type="locution">']
 			if indent.canonical_form:
-				lines = [f'{pad}<re type="locution">']
 				lines.append(f"{pad}  <form><orth>{escape(indent.canonical_form)}</orth></form>")
-				lines.append(f"{pad}  <def>{content}</def>")
-				for cit in indent.citations:
-					lines.append(emit_citation(cit, indent_level + 1))
-				lines.append(f"{pad}</re>")
-				return "\n".join(lines)
-			return _sense_block(pad, content, indent.citations, indent_level, tag="re", attrs=' type="locution"')
+			lines.append(f"{pad}  <def>{content}</def>")
+			lines.extend(_emit_citations(indent.citations, indent_level + 1))
+			lines.append(f"{pad}</re>")
+			return "\n".join(lines)
+
 		case IndentRole.proverb:
-			return _sense_block(pad, content, indent.citations, indent_level, tag="re", attrs=' type="proverb"')
+			lines = [f'{pad}<re type="proverbe">']
+			lines.append(f"{pad}  <def>{content}</def>")
+			lines.extend(_emit_citations(indent.citations, indent_level + 1))
+			lines.append(f"{pad}</re>")
+			return "\n".join(lines)
+
 		case IndentRole.cross_reference:
 			return f'{pad}<note type="xref">{content}</note>'
+
 		case IndentRole.nature_label:
 			if indent.children:
 				lines = [f"{pad}<sense>"]
-				lines.append(f'{pad}  <gramGrp><gram type="pos">{content}</gram></gramGrp>')
-				for cit in indent.citations:
-					lines.append(emit_citation(cit, indent_level + 1))
+				lines.append(f'{pad}  <usg type="gram">{content}</usg>')
+				lines.extend(_emit_citations(indent.citations, indent_level + 1))
 				for child in indent.children:
 					lines.append(emit_indent(child, indent_level + 1))
 				lines.append(f"{pad}</sense>")
 				return "\n".join(lines)
-			return f"{pad}<dictScrap>{content}</dictScrap>"
+			return f'{pad}<usg type="gram">{content}</usg>'
+
 		case IndentRole.voice_transition:
 			if indent.children:
 				lines = [f"{pad}<sense>"]
 				lines.append(f'{pad}  <usg type="gram">{content}</usg>')
-				for cit in indent.citations:
-					lines.append(emit_citation(cit, indent_level + 1))
+				lines.extend(_emit_citations(indent.citations, indent_level + 1))
 				for child in indent.children:
 					lines.append(emit_indent(child, indent_level + 1))
 				lines.append(f"{pad}</sense>")
 				return "\n".join(lines)
-			return f'{pad}<gramGrp><gram type="transition">{content}</gram></gramGrp>'
+			return f'{pad}<usg type="gram">{content}</usg>'
+
 		case _:
-			return _sense_block(pad, content, indent.citations, indent_level, children=indent.children)
+			lines = [f"{pad}<sense>"]
+			lines.append(f"{pad}  <def>{content}</def>")
+			lines.extend(_emit_citations(indent.citations, indent_level + 1))
+			for child in indent.children:
+				lines.append(emit_indent(child, indent_level + 1))
+			lines.append(f"{pad}</sense>")
+			return "\n".join(lines)
 
 
 def emit_variante(variante: Variante, indent_level: int = 0) -> str:
@@ -170,11 +197,15 @@ def emit_variante(variante: Variante, indent_level: int = 0) -> str:
 		content = markup_to_tei(variante.content)
 		lines.append(f"{pad}  <def>{content}</def>")
 
-	for cit in variante.citations:
-		lines.append(emit_citation(cit, indent_level + 1))
+	lines.extend(_emit_citations(variante.citations, indent_level + 1))
 
 	for indent in variante.indents:
 		lines.append(emit_indent(indent, indent_level + 1))
+
+	for rubrique in variante.rubriques:
+		emitted = emit_rubrique(rubrique, indent_level + 1)
+		if emitted:
+			lines.append(emitted)
 
 	lines.append(f"{pad}</sense>")
 	return "\n".join(lines)
@@ -200,15 +231,15 @@ def _emit_medium_variant(variante: Variante, pad: str, indent_level: int) -> str
 	return "\n".join(lines)
 
 
-def _emit_note_rubrique(pad: str, rubrique: Rubrique, note_type: str, indent_level: int) -> str:
-	lines = [f'{pad}<note type="{note_type}">']
+def _emit_rubrique_body(pad: str, rubrique: Rubrique, indent_level: int) -> list[str]:
+	lines: list[str] = []
+	if rubrique.content:
+		lines.append(f"{pad}  <p>{markup_to_tei(rubrique.content)}</p>")
+	lines.extend(_emit_citations(rubrique.citations, indent_level + 1))
 	for indent in rubrique.indents:
-		content = markup_to_tei(indent.content)
-		lines.append(f"{pad}  <p>{content}</p>")
-		for cit in indent.citations:
-			lines.append(emit_citation(cit, indent_level + 1))
-	lines.append(f"{pad}</note>")
-	return "\n".join(lines)
+		lines.append(f"{pad}  <p>{markup_to_tei(indent.content)}</p>")
+		lines.extend(_emit_citations(indent.citations, indent_level + 1))
+	return lines
 
 
 def emit_rubrique(rubrique: Rubrique, indent_level: int = 0) -> str:
@@ -216,38 +247,40 @@ def emit_rubrique(rubrique: Rubrique, indent_level: int = 0) -> str:
 
 	match rubrique.type:
 		case RubriqueType.etymologie:
-			content = markup_to_tei(rubrique.content)
-			inner_parts = [content] + [markup_to_tei(ind.content) for ind in rubrique.indents]
-			full = " ".join(p for p in inner_parts if p)
-			return f"{pad}<etym>{full}</etym>"
+			lines = [f"{pad}<etym>"]
+			lines.extend(_emit_rubrique_body(pad, rubrique, indent_level))
+			lines.append(f"{pad}</etym>")
+			return "\n".join(lines)
 
 		case RubriqueType.historique:
-			return _emit_note_rubrique(pad, rubrique, "historical", indent_level)
+			lines = [f'{pad}<note type="historique">']
+			lines.extend(_emit_rubrique_body(pad, rubrique, indent_level))
+			lines.append(f"{pad}</note>")
+			return "\n".join(lines)
 
 		case RubriqueType.remarque:
-			return _emit_note_rubrique(pad, rubrique, "usage", indent_level)
+			lines = [f'{pad}<note type="remarque">']
+			lines.extend(_emit_rubrique_body(pad, rubrique, indent_level))
+			lines.append(f"{pad}</note>")
+			return "\n".join(lines)
 
 		case RubriqueType.synonyme:
-			lines = [f'{pad}<re type="synonymy">']
-			for indent in rubrique.indents:
-				content = markup_to_tei(indent.content)
-				lines.append(f"{pad}  <def>{content}</def>")
+			lines = [f'{pad}<re type="synonyme">']
+			lines.extend(_emit_rubrique_body(pad, rubrique, indent_level))
 			lines.append(f"{pad}</re>")
 			return "\n".join(lines)
 
 		case RubriqueType.proverbes:
-			lines = [f'{pad}<re type="proverb">']
-			for indent in rubrique.indents:
-				content = markup_to_tei(indent.content)
-				lines.append(f"{pad}  <def>{content}</def>")
-				for cit in indent.citations:
-					lines.append(emit_citation(cit, indent_level + 1))
+			lines = [f'{pad}<re type="proverbes">']
+			lines.extend(_emit_rubrique_body(pad, rubrique, indent_level))
 			lines.append(f"{pad}</re>")
 			return "\n".join(lines)
 
 		case RubriqueType.supplement:
-			content = markup_to_tei(rubrique.content)
-			return f'{pad}<note type="supplement">{content}</note>' if content else ""
+			lines = [f'{pad}<note type="supplément">']
+			lines.extend(_emit_rubrique_body(pad, rubrique, indent_level))
+			lines.append(f"{pad}</note>")
+			return "\n".join(lines)
 
 		case _:
 			return ""
@@ -272,7 +305,7 @@ def emit_entry(entry: Entry, indent_level: int = 0) -> str:
 		lines.append(f'{pad}  <gramGrp><gram type="pos">{escape(entry.pos)}</gram></gramGrp>')
 
 	if entry.resume_text:
-		lines.append(f'{pad}  <note type="outline">[see source]</note>')
+		lines.append(f'{pad}  <note type="résumé">[see source]</note>')
 
 	for variante in entry.body_variantes:
 		lines.append(emit_variante(variante, indent_level + 1))
