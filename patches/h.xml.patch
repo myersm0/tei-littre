@@ -1,0 +1,23 @@
+--- data/source.orig/h.xml	2026-02-11 07:13:05
++++ data/source/h.xml	2026-02-12 17:33:45
+@@ -24684,7 +24684,8 @@
+ </indent>
+ <indent>Livre d'heures, ou, simplement, heures, livre où ces prières sont contenues. 
+ <cit aut="MAINTENON" ref="Lett. au card. de Noailles, 3 oct. 1703">Mme la duchesse de Bourgogne vous est bien obligée de penser à elle, et sera ravie d'avoir vos heures</cit>
+-Populairement. Une paire d'heures, un livre d'heures.
++</indent>
++<indent>Populairement. Une paire d'heures, un livre d'heures.
+ </indent>
+ </variante>
+ <variante num="8">Moment précis fixé pour un rendez-vous, pour une affaire. Donner son heure. Choisir une heure. Nous sommes convenus de cinq heures du soir. L'heure du rendez-vous. 
+@@ -32673,8 +32674,9 @@
+ </indent>
+ <indent>N'être homme à cela près, ne pas attacher d'importance à une chose qui en blesserait un autre. 
+ <cit aut="LA FONT." ref="Diable en enfer.">...Neherbal n'était homme à cela près...</cit>
+-Familièrement. C'est un homme à tout, c'est un homme propre à différents genres de besognes, de services. Ce domestique est fort intelligent, c'est un homme à tout.
+ </indent>
++<indent>Familièrement. C'est un homme à tout, c'est un homme propre à différents genres de besognes, de services. Ce domestique est fort intelligent, c'est un homme à tout.
++</indent>
+ <indent>Homme à, exprimant de quoi un homme est digne soit en bien soit en mal ; dans cet emploi au lieu de dire : il est homme à, on dit d'ordinaire : c'est un homme à. C'est un homme à noyer, à pendre, à ménager, à employer. Un homme à nasardes, à étrivières.
+ </indent>
+ </variante>

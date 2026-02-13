@@ -1,0 +1,33 @@
+--- data/source.orig/c.xml	2026-02-11 07:13:06
++++ data/source/c.xml	2026-02-12 17:40:40
+@@ -76191,7 +76191,9 @@
+ <indent><semantique type="indicateur">Fig.</semantique> Battre le chien devant le lion, ou devant le loup, réprimander une personne inférieure devant une personne supérieure, à qui cela doit servir de leçon.
+ </indent>
+ <indent>Entre chien et loup, à petit jour, le soir ou le matin, c'est-à-dire quand le jour est si sombre qu'on ne saurait distinguer un chien d'avec un loup. 
+-<cit aut="SÉV." ref="221">Que pensez-vous que tout cela fasse entre chien et loup ?</cit> Substantivement. 
++<cit aut="SÉV." ref="221">Que pensez-vous que tout cela fasse entre chien et loup ?</cit>
++</indent>
++<indent>Substantivement. 
+ <cit aut="ID." ref="232">Je crains l'entre chien et loup quand on ne cause pas</cit>
+ </indent>
+ <indent><semantique type="indicateur">Fig.</semantique> Leurs chiens ne chassent pas ensemble, c'est-à-dire ces personnes ne sont pas en bonne intelligence.
+@@ -114489,7 +114491,8 @@
+ <cit aut="J. J. ROUSS." ref="Ém. IV">Tout ce qu'on fait par autrui se fait mal, comme qu'on s'y prenne</cit>
+ <cit aut="ID." ref="ib. II">Comme qu'on s'y prenne, il est impossible qu'on en vienne à bout</cit>
+ <cit aut="ID." ref="Conf. I">Comme que je fasse, il m'empoisonnera</cit>
+-Familièrement. Dieu sait comme, locution qui signifie médiocrement, assez mal. 
++</indent>
++<indent>Familièrement. Dieu sait comme, locution qui signifie médiocrement, assez mal. 
+ <cit aut="LA FONT." ref="Faucon.">Et peu d'amis, même amis, Dieu sait comme</cit>
+ <cit aut="BÉRANG." ref="Acad. et Cav.">Je croyais voir le président Faire bâiller en répondant Que l'on vient de perdre un grand homme, Que moi je le vaux, Dieu sait comme</cit>
+ <cit aut="ID." ref="3e mari.">Léandre me fait lui prêter De l'argent qu'il rend Dieu sait comme !</cit>
+@@ -182989,7 +182992,8 @@
+ <cit aut="LA FONT." ref="Fabl. VIII, 24">Son frère, ayant couru mainte haute aventure, Mis maint cerf aux abois, maint sanglier abattu, Fut le premier César que la gent chienne ait eu</cit>
+ <indent>Dans un sens général, avoir des aventures, quelles qu'elles soient. 
+ <cit aut="ID." ref="Psyché, I, p. 39">Notre héroïne se mit à rêver à ses aventures, particulièrement à celles de cette nuit ; ce n'étaient pas véritablement les plus étranges qu'elle eût courues</cit>
+-Par extension, être exposé à. Il a couru le risque de périr. Vous courez risque de vous ruiner. 
++</indent>
++<indent>Par extension, être exposé à. Il a couru le risque de périr. Vous courez risque de vous ruiner. 
+ <cit aut="CORN." ref="Cinna, I, 2">Quand je songe aux dangers que je lui fais courir</cit>
+ <cit aut="ID." ref="Rodog. V, 5">Il vous a préservé, sur le point de périr, Du danger le plus grand que vous puissiez courir</cit>
+ <cit aut="RAC." ref="Phèd. I, 1">Et d'ailleurs quels périls peut vous faire courir Une femme mourante et qui cherche à mourir ?</cit>

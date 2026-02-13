@@ -1,0 +1,12 @@
+--- data/source.orig/j.xml	2026-02-11 07:13:05
++++ data/source/j.xml	2026-02-12 17:34:42
+@@ -11318,7 +11318,8 @@
+ <cit aut="VOLT." ref="Lett. d'Argental, 8 juill. 1772">On a joué à Londres une traduction de Tancrède avec un très grand succès ; la pièce m'a paru fort bien écrite</cit>
+ <indent><semantique type="indicateur">Fig.</semantique>
+ <cit aut="BOSSUET" ref="Comédie, 4">On se voit soi-même dans ceux qui nous paraissent comme transportés par de semblables objets ; on devient bientôt un acteur secret dans la tragédie, on y joue sa propre passion</cit>
+-Absolument. Ce comédien joue fort bien. 
++</indent>
++<indent>Absolument. Ce comédien joue fort bien. 
+ <cit aut="MOL." ref="l'Impromptu, 1">Nous ne savons pas nos rôles ; et c'est nous faire enrager vous-même, que de nous obliger à jouer de la sorte</cit>
+ <cit aut="ID." ref="ib. 2">Jouez-vous tous deux aujourd'hui ?</cit>
+ </indent>

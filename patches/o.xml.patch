@@ -1,0 +1,23 @@
+--- data/source.orig/o.xml	2026-02-11 07:13:06
++++ data/source/o.xml	2026-02-12 17:36:40
+@@ -9182,7 +9182,8 @@
+ <cit aut="ID." ref="Othon, III, 5">Rome, tant qu'il vivra, n'aura plus d'yeux pour moi</cit>
+ <cit aut="MASS." ref="Avent, Épiph.">Uniquement occupés de la lumière du ciel.... ils n'ont pas d'yeux pour tout ce qui se passe dans le monde</cit>
+ <cit aut="ID." ref="Panég. Ste Magd.">Elle n'a plus d'yeux pour le reste du monde</cit>
+-Familièrement. Aimer quelqu'un comme ses yeux, plus que ses yeux, l'aimer tendrement. 
++</indent>
++<indent>Familièrement. Aimer quelqu'un comme ses yeux, plus que ses yeux, l'aimer tendrement. 
+ <cit aut="LA FONT." ref="Fabl. VIII, 22">Je t'ai toujours choyé, t'aimant comme mes yeux</cit>
+ <cit aut="VOLT." ref="Lett. Mme du Deffant, 9 août 1771">Je ne peux vous dire, madame, que je vous aime comme mes yeux ; mais je vous aime comme mon âme, car je me suis toujours aperçu qu'au fond mon âme pensait comme la vôtre</cit>
+ </indent>
+@@ -9604,8 +9605,9 @@
+ <cit aut="DIDEROT" ref="Mém. t. I, p. 285, dans POUGENS">Madame d'Épinay me faisait des yeux ; et à la fin, quand j'ai eu tout dit, j'ai compris que je désobligeais....</cit>
+ <indent>On dit dans un sens analogue : faire les gros yeux. 
+ <cit aut="DIDER." ref="Mém. t. III, p. 52, dans POUGENS">Je me prosterne aux pieds de maman, et je la supplie de ne me plus faire les gros yeux ; je tâcherai à l'avenir d'être un peu plus joli garçon</cit>
+-Populairement. Faire l'œil, témoigner par ses regards qu'on désire quelque chose. Faire l'œil à une bouteille de vin.
+ </indent>
++<indent>Populairement. Faire l'œil, témoigner par ses regards qu'on désire quelque chose. Faire l'œil à une bouteille de vin.
++</indent>
+ <indent>On dit dans le même sens : faire de l'œil. 
+ <cit aut="LA FONT." ref="Cas.">Chacun à sa chacune But en faisant de l'œil....</cit>
+ </indent>

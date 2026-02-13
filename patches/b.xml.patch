@@ -1,0 +1,12 @@
+--- data/source.orig/b.xml	2026-02-11 07:13:06
++++ data/source/b.xml	2026-02-12 17:19:59
+@@ -48848,7 +48848,8 @@
+ <cit aut="CORN." ref="D. San. I, 3">Je prends sur moi sa dette et je vous la fais bonne</cit>
+ <cit aut="HAMILT." ref="Gramm. 11">Vous savez que je suis bon pour cette somme</cit>
+ <cit aut="SAINT-SIMON" ref="304, 224">Il [le capitaine garde-côte] se contenterait des gages de la charge pour tout intérêt de la somme, et sans être [sans que nous soyons] tenus de les lui faire bons, au cas qu'ils ne fussent pas payés</cit>
+-Substantivement. 
++</indent>
++<indent>Substantivement. 
+ <cit aut="LESAGE" ref="Diable boiteux, II, 194">Vous pouvez compter sur 50 pistoles, je vous en fais bon</cit>
+ </indent>
+ <indent><semantique type="indicateur">Fig.</semantique>

@@ -1,0 +1,22 @@
+--- data/source.orig/t.xml	2026-02-11 07:13:06
++++ data/source/t.xml	2026-02-12 17:52:32
+@@ -46269,7 +46269,8 @@
+ <indent>Baisser, approcher de sa fin. 
+ <cit aut="DIDER." ref="Salon de 1767, Œuv. t. XIV, p. 188, dans POUGENS">Le jour commençait à tomber ; nous ne laissions pas que d'avoir du chemin à faire jusqu'au château</cit>
+ <cit aut="STAËL" ref="Corinne, XX, 5">Quand le jour tombe, il y a de grandes ombres dans la campagne qui semblent les replis de sa robe traînante</cit>
+-Substantivement. 
++</indent>
++<indent>Substantivement. 
+ <cit aut="LAMART." ref="Méd. I, 20">Ou plutôt que ne puis-je, au doux tomber du jour....</cit>
+ </indent>
+ </variante>
+@@ -57205,7 +57206,8 @@
+ <cit aut="BOURDAL." ref="Exhort. sur le reniem. de St Pierre, t. I, p. 473">Vous savez comment le Sauveur se tourna vers lui [Pierre], et le regarda</cit>
+ <indent><semantique type="indicateur">Fig.</semantique> De quelque côté qu'on se tourne, quelque parti que l'on prenne. 
+ <cit aut="VOLT." ref="Dict. phil. âme.">De quelque côté que vous vous tourniez, vous êtes forcé d'avouer deux choses : votre ignorance et la puissance immense du Créateur</cit>
+-Familièrement. N'avoir pas le temps de se tourner, être très occupé, très affairé. 
++</indent>
++<indent>Familièrement. N'avoir pas le temps de se tourner, être très occupé, très affairé. 
+ <cit aut="SÉV." ref="29 déc. 1675">Nous faisons tant d'affaires, que nous n'avons pas le temps de nous tourner</cit>
+ </indent>
+ <indent><semantique type="indicateur">Fig.</semantique> Avoir le temps de se tourner, avoir le temps d'examiner, d'agir. 

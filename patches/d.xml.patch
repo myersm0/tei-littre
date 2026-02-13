@@ -1,0 +1,22 @@
+--- data/source.orig/d.xml	2026-02-11 07:13:06
++++ data/source/d.xml	2026-02-12 17:31:01
+@@ -96850,7 +96850,8 @@
+ <cit aut="MOL." ref="le Dép. V, 3">Et puis-je mais, chétif, si le cœur leur en dit ?</cit>
+ <cit aut="HAMILT." ref="Gramm, 4">Pour peu que le cœur lui en dît</cit>
+ <cit aut="FONTEN." ref="Laure, Sapho.">Qu'on s'aime de part et d'autre autant que le cœur en dira</cit>
+-Par extension. 
++</indent>
++<indent>Par extension. 
+ <cit aut="MOL." ref="l'Étour. V, 2">Si le sort nous en dit [nous est favorable], tout sera bien réglé</cit>
+ </indent>
+ <indent>En vouloir dire, être prêt à faire. 
+@@ -114138,7 +114139,8 @@
+ <cit aut="ID." ref="Or. fun. Conty.">Ce n'est pas une constance de philosophe ; il ne donne rien aux spectateurs</cit>
+ <cit aut="ID." ref="Or. fun. Dauphin.">L'on y donne quelquefois [dans les cours] les dehors à la piété, pour réserver plus sûrement le cœur à l'amertume de la jalousie</cit>
+ <cit aut="ID." ref="Confér. Zèle c. les scand.">Notre régularité n'est qu'une décence que nous donnons au monde et au sérieux de notre état</cit>
+-Absolument. 
++</indent>
++<indent>Absolument. 
+ <cit aut="SÉV." ref="379">Il [un prédicateur] ne croit pas qu'on puisse sans péché donner à ses plaisirs quand on a des créanciers ; les dépenses lui paraissent des vols qui nous ôtent le moyen de faire justice</cit>
+ </indent>
+ </variante>

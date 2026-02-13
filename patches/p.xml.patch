@@ -1,0 +1,12 @@
+--- data/source.orig/p.xml	2026-02-11 07:13:06
++++ data/source/p.xml	2026-02-12 17:37:26
+@@ -34779,7 +34779,8 @@
+ <variante num="39">Aller au delà, en parlant de l'espace. La boule a passé le but.
+ <indent><semantique type="indicateur">Fig.</semantique>
+ <cit aut="MARIVAUX" ref="Pays. parv. part. 4">Tout mari est plaideur, monsieur, ou il se défend ou il attaque ; quelquefois le procès ne passe pas la maison</cit>
+-Absolument. Qui passe perd, se dit à certains jeux lorsqu'on excède le nombre de points nécessaires pour gagner. 
++</indent>
++<indent>Absolument. Qui passe perd, se dit à certains jeux lorsqu'on excède le nombre de points nécessaires pour gagner. 
+ <cit aut="SÉV." ref="à Bussy, 19 mai 1677">Je vous recommande mon panégyrique au bas de mon portrait.... c'est là qu'il est dangereux de passer le but ; qui passe perd, et les louanges sont des satires quand....</cit>
+ </indent>
+ <indent>Aller au delà, en parlant du temps. 

@@ -1,0 +1,13 @@
+--- data/source.orig/v.xml	2026-02-11 07:13:06
++++ data/source/v.xml	2026-02-12 17:38:26
+@@ -42187,8 +42187,9 @@
+ </indent>
+ <indent><semantique type="indicateur">Familièrement,</semantique> comme par défi. Je voudrais bien voir cela. C'est ce qu'il faudra voir. Nous verrons bien. Voyons s'il osera. 
+ <cit aut="MARIVAUX" ref="Paysan parvenu, 6e partie.">Il vous a sans doute contenté ; j'aurais bien voulu voir qu'il ne l'eût point fait, reprit avec impatience mon financier</cit>
+-Familièrement. Je voudrais bien vous voir à ma place, je voudrais bien vous y voir, se dit, quand on est dans une position embarrassante, à quelqu'un qui nous donne de vains conseils.
+ </indent>
++<indent>Familièrement. Je voudrais bien vous voir à ma place, je voudrais bien vous y voir, se dit, quand on est dans une position embarrassante, à quelqu'un qui nous donne de vains conseils.
++</indent>
+ <indent><semantique type="indicateur">Ironiquement,</semantique> il fait beau voir, il ferait beau voir, c'est, ce serait un spectacle ridicule. Il fait beau vous voir, à votre âge, vous amuser à ces bagatelles-là.
+ </indent>
+ </variante>
