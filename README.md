@@ -74,31 +74,46 @@ Key conventions:
 - TEI element names and standard vocabulary stay English (part of the TEI standard)
 - Author abbreviations preserved as-is in display; resolved forms in `<author>` elements
 
-
 ## SQLite schema
 The SQLite database provides a flat, queryable view of the dictionary:
 
 - **entries**: headword, POS, pronunciation, xml_id, source file, supplement flag
 - **senses**: definition text, sense number, parent entry, indent role classification
 - **citations**: quote text, author (original + resolved), reference, parent sense
+- **locutions**: 13,972 canonical forms keyed to sense_id
 - **review_queue**: pipeline-flagged items for human review (387 items across 5 categories)
 
 Example queries:
 
 ```sql
 -- All citations from Molière
-SELECT e.headword, c.text, c.reference
+SELECT e.headword, c.text_plain, c.reference
 FROM citations c
-JOIN senses s ON c.sense_id = s.id
-JOIN entries e ON s.entry_id = e.id
+JOIN senses s ON c.sense_id = s.sense_id
+JOIN entries e ON s.entry_id = e.entry_id
 WHERE c.resolved_author = 'MOLIÈRE';
 
 -- Entries with figurative senses
 SELECT DISTINCT e.headword
-FROM senses s JOIN entries e ON s.entry_id = e.id
+FROM senses s JOIN entries e ON s.entry_id = e.entry_id
 WHERE s.role = 'figurative';
+
+-- Look up a locution: reading Maupassant, what does "donner dans le panneau" mean?
+SELECT l.canonical_form, s.content_plain
+FROM locutions l
+JOIN senses s ON l.sense_id = s.sense_id
+WHERE l.canonical_form LIKE '%panneau%';
 ```
 
+The latter query returns:
+```
+Panneaux flottés       | Panneaux flottés, panneaux posés à plat.
+Panneau de sculpture   | Panneau de sculpture, se dit des ornements sculptés dans un panneau.
+Panneau de glace       | Panneau de glace, une glace tenant lieu de panneau.
+Grand panneau          | Grand panneau, le panneau qui sert à fermer la grande écoutille.
+```
+
+It's the locution index that makes this kind of query possible. In the original XML, these are unlabeled `<indent>` elements with no extracted canonical form, so there's no way to search for multi-word expressions without reading entire entries.
 
 ## Building from source
 ### Requirements
