@@ -101,6 +101,11 @@ def scope_inter_variante(entry: Entry, log: ScopeLog) -> None:
 			continue
 
 		transition = var.indents[-1]
+
+		if transition.citations:
+			new_body.append(var)
+			i += 1
+			continue
 		plain = strip_tags(transition.content)
 		remaining = body[i + 1:]
 
@@ -118,7 +123,7 @@ def scope_inter_variante(entry: Entry, log: ScopeLog) -> None:
 			if not future_var.indents:
 				continue
 			last_indent = future_var.indents[-1]
-			if last_indent.role == IndentRole.voice_transition:
+			if last_indent.role == IndentRole.voice_transition and not last_indent.citations:
 				scope_end = k
 				break
 
