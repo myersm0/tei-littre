@@ -6,3 +6,4 @@ data/littre.tei.xml
 .venv/
 env/
 .meta
+temp/
