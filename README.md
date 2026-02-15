@@ -17,7 +17,7 @@ Pre-built data products are attached [coming soon] to each [GitHub release](../.
 
 Decompress with `gunzip littre.tei.xml.gz` or equivalent.
 
-**Status**: Still under development. Check back soon.
+**Status**: Still under development. Downloads are not available yet. Check back soon.
 
 
 ## Enrichments over the source
@@ -80,7 +80,7 @@ Key conventions:
 The SQLite database provides a flat, queryable view of the dictionary:
 
 - **entries**: headword, POS, pronunciation, xml_id, source file, supplement flag
-- **senses**: definition text, sense number, parent entry, indent role classification
+- **senses**: definition text, sense number, parent entry, indent role classification, `indent_id` (ASCII-normalized path like `defaut.3.1`), `xml_id` (matching the TEI `xml:id` attribute)
 - **citations**: quote text, author (original + resolved), reference, parent sense
 - **locutions**: 13,972 canonical forms keyed to sense_id
 - **review_queue**: pipeline-flagged items for human review (387 items across 5 categories)
@@ -143,12 +143,10 @@ PYTHONPATH=src python -m tei_littre.spotcheck ENVIE
 
 Requires [Textual](https://textual.textualize.io/). Navigate with `j`/`k`, `space`/`b`, `d`/`u`. Sections are color-coded by rubrique type.
 
-
 ### Tests
 ```
 PYTHONPATH=src python -m pytest tests/
 ```
-
 
 ## Repository structure
 ```
@@ -166,7 +164,16 @@ tei-littre/
 │   ├── emit_sqlite.py          Phase 7b: model → SQLite
 │   ├── spotcheck.py            Side-by-side TUI spot-checker
 │   └── __main__.py             Pipeline orchestrator
-├── tests/                      Test suite
+├── tests/
+│   ├── test_pipeline.py        Core pipeline tests (69)
+│   ├── test_gold.py            Gold-standard classification tests (36, 12 xfail)
+│   └── test_sense_ids.py       Sense ID edge case tests (15)
+├── patches/                    Source XML corrections (applied at normalize time)
+│   ├── cit_tail_splits/        Split <indent> at transition boundaries (15 cases)
+│   ├── missing_homograph_index/ Add sens= to duplicate headwords (e.g. DI-)
+│   └── wrong_terme/            Fix incorrect terme= attributes (e.g. ESQUAQUE)
+├── scripts/
+│   └── llm_review.py           LLM reclassification sweep
 ├── data/
 │   ├── source/                 Gannaz XML files (not tracked)
 │   ├── littre.tei.xml          TEI output (not tracked; see Releases)
@@ -179,14 +186,31 @@ tei-littre/
 ## Known limitations
 
 - **Résumé blocks**: 96 long entries have tables of contents (`<résumé>` in source) currently emitted as placeholders.
-- **Sense-level xml:id**: Not yet implemented. Needed for resolving Littré's internal cross-references ("voy. PIED, n° 1").
 - **Large-scope transitions**: 8 entries (DONNER, FAIRE, etc.) have grammatical transitions that scope over >15 senses. Manually reviewed but may need refinement.
 - **Mid-text usage labels**: ~730 inline `<usg>` elements remain inside `<def>` where they appear mid-sentence (reflexive verb patterns like "Se damner, `<usg>v. réfl.</usg>` Attirer sur soi..."). These are structurally correct for their context.
 - **Locution def deduplication**: Canonical form text is sometimes repeated in the `<def>` element.
+- **Locution under-detection**: An estimated ~12,000 locutions are currently misclassified as continuation/elaboration. See `tests/test_gold.py` for 12 xfail tests tracking this. A fix is under development.
+- **Source data errors**: Gannaz's XML contains a small number of errors including missing homograph indices (e.g. DI- appears twice without `sens=`), incorrect `terme` attributes (ESQUAQUE used for -ESQUE), and accent-collision headwords (31 pairs). These will be corrected incrementally via patches in `patches/`.
 
+
+## Entry and sense IDs
+Entry IDs are ASCII-normalized from the headword: accents stripped, special characters replaced with underscores (`DÉGOÛTÉ, ÉE` → `degoute_ee`). Homograph entries in the source XML carry an index via `sens=` attribute (`degrossi_ie.1`, `degrossi.2`).
+
+When multiple entries produce the same normalized ID — either from accent collisions (`DÉGOUT`/`DÉGOÛT` → both `degout`) or missing homograph indices — all occurrences receive a numeric suffix: `degout_1`, `degout_2`. Entries with unique IDs are unaffected.
+
+All TEI elements with semantic content receive `xml:id` attributes: `<entry>`, `<sense>`, `<re type="locution">`, `<re type="proverbe">`, `<note type="xref">`. 43,406 unique IDs with zero duplicates across the d+e development corpus.
+
+
+## Source patches
+Corrections to Gannaz's source XML live in `patches/`, organized by error type. Patches are unified diffs applied during the normalize phase, keeping the originals in `data/source/` untouched. Current categories:
+
+- **cit_tail_splits**: 15 cases where transition labels (`Absolument.`, `Substantivement.`) appear as bare text between citations inside a single `<indent>`. Patch splits the indent at the transition boundary.
+- **missing_homograph_index**: Entries like DI- that appear twice without `sens=` attributes to distinguish them.
+- **wrong_terme**: Entries where the `terme` attribute doesn't match the actual headword (e.g. `-ESQUE` entered as `ESQUAQUE`).
+
+Additional source errors are expected to surface as the full corpus is processed. Patches can be added incrementally; the pipeline rebuilds deterministically from patched sources.
 
 ## Source data
-
 This project builds on:
 
 > François Gannaz, *XMLittré — Le dictionnaire de la langue française d'Émile Littré en XML*, version 1.3.
@@ -197,5 +221,4 @@ The underlying text is the *Dictionnaire de la langue française* by Émile Litt
 
 
 ## License
-
 CC-BY-SA 4.0. See [LICENSE](LICENSE).
