@@ -5,7 +5,7 @@ Littré's dictionary is an important document of French lexicography: 78,600 ent
 
 The pipeline is not a mechanical format conversion. Gannaz's XML uses a flat `<indent>` element as an overloaded catch-all for sub-senses, figurative uses, domain labels, locutions, register shifts, cross-references, proverbs, and grammatical transitions. The pipeline classifies each indent by semantic role, extracts canonical forms from locutions, resolves scope ambiguities in grammatical transitions, and emits structured TEI that preserves Littré's semantic hierarchy.
 
-> **Status**: This is still a work in progress. The pipeline produces usable data as-is, but I'm still refining the model and running checks on accuracy.
+> **Status**: This is still a work in progress. The pipeline produces usable data as-is, but I'm still refining the model and running checks on accuracy. Be sure to review the [Known limitations](#known-limitations) section.
 
 ## Downloads
 Pre-built data products are attached [coming soon] to each [GitHub release](../../releases):
@@ -16,9 +16,6 @@ Pre-built data products are attached [coming soon] to each [GitHub release](../.
 | `littre.db.gz` | SQLite database for computational queries | ~55 MB |
 
 Decompress with `gunzip littre.tei.xml.gz` or equivalent.
-
-**Status**: Still under development. Downloads are not available yet. Check back soon.
-
 
 ## Enrichments over the source
 **Structural classification** — 86,942 flat `<indent>` blocks classified into semantic roles: definitions, figurative senses, domain labels (`Terme de marine`, `Terme de musique`), register labels (`familièrement`, `populairement`), locutions, proverbs, cross-references, nature labels (`s. m.`, `adj.`), and voice transitions (`v. réfl.`). 100% coverage.
