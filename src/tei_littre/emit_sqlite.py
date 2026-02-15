@@ -40,6 +40,8 @@ CREATE TABLE senses (
 	entry_id TEXT NOT NULL REFERENCES entries(entry_id),
 	parent_sense_id INTEGER REFERENCES senses(sense_id),
 	num INTEGER,
+	indent_id TEXT,
+	xml_id TEXT,
 	sense_type TEXT NOT NULL DEFAULT 'sense',
 	role TEXT,
 	content_plain TEXT,
@@ -90,6 +92,8 @@ CREATE TABLE review_queue (
 CREATE INDEX idx_senses_entry ON senses(entry_id);
 CREATE INDEX idx_senses_parent ON senses(parent_sense_id);
 CREATE INDEX idx_senses_role ON senses(role);
+CREATE INDEX idx_senses_indent_id ON senses(indent_id);
+CREATE INDEX idx_senses_xml_id ON senses(xml_id);
 CREATE INDEX idx_citations_sense ON citations(sense_id);
 CREATE INDEX idx_citations_author ON citations(resolved_author);
 CREATE INDEX idx_locutions_form ON locutions(canonical_form);
@@ -157,13 +161,18 @@ def _insert_citations(cursor: sqlite3.Cursor, sense_id: int, citations: list[Cit
 		)
 
 
-def _insert_indent(cursor: sqlite3.Cursor, entry_id: str, parent_sense_id: int, indent: Indent, depth: int) -> None:
+def _insert_indent(
+	cursor: sqlite3.Cursor, entry_id: str, parent_sense_id: int,
+	indent: Indent, depth: int,
+	indent_id: str = "", xml_id: str = "",
+) -> None:
 	plain = strip_tags(indent.content)
 	sense_type = _sense_type_for_indent(indent)
 	cursor.execute(
-		"INSERT INTO senses (entry_id, parent_sense_id, sense_type, role, content_plain, content_markup, depth) "
-		"VALUES (?, ?, ?, ?, ?, ?, ?)",
-		(entry_id, parent_sense_id, sense_type, indent.role.value, plain, indent.content, depth),
+		"INSERT INTO senses (entry_id, parent_sense_id, indent_id, xml_id, sense_type, role, content_plain, content_markup, depth) "
+		"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		(entry_id, parent_sense_id, indent_id or None, xml_id or None,
+		 sense_type, indent.role.value, plain, indent.content, depth),
 	)
 	sense_id = cursor.lastrowid
 	_insert_citations(cursor, sense_id, indent.citations)
@@ -171,38 +180,60 @@ def _insert_indent(cursor: sqlite3.Cursor, entry_id: str, parent_sense_id: int, 
 	if indent.role == IndentRole.locution and indent.canonical_form:
 		cursor.execute("INSERT INTO locutions (sense_id, canonical_form) VALUES (?, ?)", (sense_id, indent.canonical_form))
 
+	child_counter = 0
 	for child in indent.children:
-		_insert_indent(cursor, entry_id, sense_id, child, depth + 1)
+		child_counter += 1
+		child_indent_id = f"{indent_id}.{child_counter}" if indent_id else ""
+		child_xml_id = f"{xml_id}.{child_counter}" if xml_id else ""
+		_insert_indent(cursor, entry_id, sense_id, child, depth + 1,
+			indent_id=child_indent_id, xml_id=child_xml_id)
 
 
-def _insert_variante(cursor: sqlite3.Cursor, entry_id: str, parent_sense_id: int | None, variante: Variante, depth: int) -> None:
+def _insert_variante(
+	cursor: sqlite3.Cursor, entry_id: str, parent_sense_id: int | None,
+	variante: Variante, depth: int,
+	headword: str = "", xml_id: str = "",
+) -> None:
 	if variante.transition_type:
 		plain = strip_tags(variante.transition_content)
 		sense_type = "grammatical_variant" if variante.transition_type == "strong" else "usage_group"
 		cursor.execute(
-			"INSERT INTO senses (entry_id, parent_sense_id, sense_type, content_plain, content_markup, depth, "
-			"transition_type, transition_form, transition_pos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"INSERT INTO senses (entry_id, parent_sense_id, xml_id, sense_type, content_plain, content_markup, depth, "
+			"transition_type, transition_form, transition_pos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			(
-				entry_id, parent_sense_id, sense_type, plain, variante.transition_content, depth,
+				entry_id, parent_sense_id, xml_id or None,
+				sense_type, plain, variante.transition_content, depth,
 				variante.transition_type, variante.transition_form or None, variante.transition_pos or None,
 			),
 		)
 		container_id = cursor.lastrowid
+		child_counter = 0
 		for sub in variante.sub_variantes:
-			_insert_variante(cursor, entry_id, container_id, sub, depth + 1)
+			child_counter += 1
+			child_xml_id = f"{xml_id}.{child_counter}" if xml_id else ""
+			_insert_variante(cursor, entry_id, container_id, sub, depth + 1,
+				headword=headword, xml_id=child_xml_id)
 		return
 
+	vnum = variante.num or "0"
+	indent_id_base = f"{headword.lower()}.{vnum}" if headword else ""
 	plain = strip_tags(variante.content) if variante.content else None
 	cursor.execute(
-		"INSERT INTO senses (entry_id, parent_sense_id, num, sense_type, content_plain, content_markup, is_supplement, depth) "
-		"VALUES (?, ?, ?, 'sense', ?, ?, ?, ?)",
-		(entry_id, parent_sense_id, variante.num, plain, variante.content or None, 1 if variante.is_supplement else 0, depth),
+		"INSERT INTO senses (entry_id, parent_sense_id, num, indent_id, xml_id, sense_type, content_plain, content_markup, is_supplement, depth) "
+		"VALUES (?, ?, ?, ?, ?, 'sense', ?, ?, ?, ?)",
+		(entry_id, parent_sense_id, variante.num, indent_id_base or None, xml_id or None,
+		 plain, variante.content or None, 1 if variante.is_supplement else 0, depth),
 	)
 	sense_id = cursor.lastrowid
 	_insert_citations(cursor, sense_id, variante.citations)
 
+	indent_counter = 0
 	for indent in variante.indents:
-		_insert_indent(cursor, entry_id, sense_id, indent, depth + 1)
+		indent_counter += 1
+		child_indent_id = f"{indent_id_base}.{indent_counter}" if indent_id_base else ""
+		child_xml_id = f"{xml_id}.{indent_counter}" if xml_id else ""
+		_insert_indent(cursor, entry_id, sense_id, indent, depth + 1,
+			indent_id=child_indent_id, xml_id=child_xml_id)
 
 
 def _insert_rubriques(cursor: sqlite3.Cursor, entry_id: str, rubriques: list[Rubrique]) -> None:
@@ -237,8 +268,12 @@ def emit_sqlite(entries: list[Entry], flags: list[ReviewFlag], output_path: str)
 				entry.source_letter or None,
 			),
 		)
+		sense_counter = 0
 		for variante in entry.body_variantes:
-			_insert_variante(cursor, entry.xml_id, None, variante, depth=0)
+			sense_counter += 1
+			xml_id = f"{entry.xml_id}_s{sense_counter}"
+			_insert_variante(cursor, entry.xml_id, None, variante, depth=0,
+				headword=entry.headword, xml_id=xml_id)
 		_insert_rubriques(cursor, entry.xml_id, entry.rubriques)
 
 	for flag in flags:

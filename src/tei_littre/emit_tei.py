@@ -242,7 +242,7 @@ def emit_indent(indent: Indent, indent_level: int = 0, sense_id: str = "") -> st
 			)
 
 		case IndentRole.locution:
-			lines = [f'{pad}<re type="locution">']
+			lines = [f'{pad}<re type="locution"{_id_attr(sense_id)}>']
 			if indent.canonical_form:
 				lines.append(f"{pad}  <form><orth>{escape(indent.canonical_form)}</orth></form>")
 			lines.append(f"{pad}  <def>{content}</def>")
@@ -251,14 +251,14 @@ def emit_indent(indent: Indent, indent_level: int = 0, sense_id: str = "") -> st
 			return "\n".join(lines)
 
 		case IndentRole.proverb:
-			lines = [f'{pad}<re type="proverbe">']
+			lines = [f'{pad}<re type="proverbe"{_id_attr(sense_id)}>']
 			lines.append(f"{pad}  <def>{content}</def>")
 			lines.extend(_emit_citations(indent.citations, indent_level + 1))
 			lines.append(f"{pad}</re>")
 			return "\n".join(lines)
 
 		case IndentRole.cross_reference:
-			return f'{pad}<note type="xref">{content}</note>'
+			return f'{pad}<note type="xref"{_id_attr(sense_id)}>{content}</note>'
 
 		case IndentRole.nature_label:
 			label, def_text = _split_label(content)
@@ -432,9 +432,6 @@ def emit_entry(entry: Entry, indent_level: int = 0) -> str:
 
 	if entry.pos:
 		lines.append(f'{pad}  <gramGrp><gram type="pos">{escape(entry.pos)}</gram></gramGrp>')
-
-	if entry.resume_text:
-		lines.append(f'{pad}  <note type="résumé">[see source]</note>')
 
 	sense_counter = 0
 	for variante in entry.body_variantes:
