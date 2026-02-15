@@ -20,7 +20,7 @@ from tei_littre.collect_flags import collect_flags
 from tei_littre.emit_sqlite import emit_sqlite
 
 
-db_path = "data/test_sense_ids.db"
+db_path = "data/output/test_sense_ids.db"
 
 
 @pytest.fixture(scope="module")
@@ -117,8 +117,12 @@ class TestHomographs:
 		assert rows[0]["indent_id"].startswith("degrossi_ie.1.")
 
 	def test_dedup_suffix(self, db):
+		cur = db.execute("SELECT entry_id FROM entries WHERE entry_id = 'damas_1'")
+		assert cur.fetchone() is not None
 		cur = db.execute("SELECT entry_id FROM entries WHERE entry_id = 'damas_2'")
 		assert cur.fetchone() is not None
+		cur = db.execute("SELECT entry_id FROM entries WHERE entry_id = 'damas'")
+		assert cur.fetchone() is None
 
 
 class TestUnnumberedVariantes:

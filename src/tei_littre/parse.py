@@ -256,13 +256,14 @@ def parse_all(source_dir: str) -> list[Entry]:
 		print(f"  {f.name}: {len(entries)} entries")
 		all_entries.extend(entries)
 
+	counts: dict[str, int] = {}
+	for entry in all_entries:
+		counts[entry.xml_id] = counts.get(entry.xml_id, 0) + 1
 	seen: dict[str, int] = {}
 	for entry in all_entries:
-		if entry.xml_id in seen:
-			seen[entry.xml_id] += 1
+		if counts[entry.xml_id] > 1:
+			seen[entry.xml_id] = seen.get(entry.xml_id, 0) + 1
 			entry.xml_id = f"{entry.xml_id}_{seen[entry.xml_id]}"
-		else:
-			seen[entry.xml_id] = 1
 
 	print(f"Total: {len(all_entries)} entries")
 	return all_entries
