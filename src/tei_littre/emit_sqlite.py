@@ -192,7 +192,7 @@ def _insert_indent(
 def _insert_variante(
 	cursor: sqlite3.Cursor, entry_id: str, parent_sense_id: int | None,
 	variante: Variante, depth: int,
-	headword: str = "", xml_id: str = "",
+	xml_id: str = "",
 ) -> None:
 	if variante.transition_type:
 		plain = strip_tags(variante.transition_content)
@@ -212,11 +212,11 @@ def _insert_variante(
 			child_counter += 1
 			child_xml_id = f"{xml_id}.{child_counter}" if xml_id else ""
 			_insert_variante(cursor, entry_id, container_id, sub, depth + 1,
-				headword=headword, xml_id=child_xml_id)
+				xml_id=child_xml_id)
 		return
 
 	vnum = variante.num or "0"
-	indent_id_base = f"{headword.lower()}.{vnum}" if headword else ""
+	indent_id_base = f"{entry_id}.{vnum}"
 	plain = strip_tags(variante.content) if variante.content else None
 	cursor.execute(
 		"INSERT INTO senses (entry_id, parent_sense_id, num, indent_id, xml_id, sense_type, content_plain, content_markup, is_supplement, depth) "
@@ -230,7 +230,7 @@ def _insert_variante(
 	indent_counter = 0
 	for indent in variante.indents:
 		indent_counter += 1
-		child_indent_id = f"{indent_id_base}.{indent_counter}" if indent_id_base else ""
+		child_indent_id = f"{indent_id_base}.{indent_counter}"
 		child_xml_id = f"{xml_id}.{indent_counter}" if xml_id else ""
 		_insert_indent(cursor, entry_id, sense_id, indent, depth + 1,
 			indent_id=child_indent_id, xml_id=child_xml_id)
@@ -273,7 +273,7 @@ def emit_sqlite(entries: list[Entry], flags: list[ReviewFlag], output_path: str)
 			sense_counter += 1
 			xml_id = f"{entry.xml_id}_s{sense_counter}"
 			_insert_variante(cursor, entry.xml_id, None, variante, depth=0,
-				headword=entry.headword, xml_id=xml_id)
+				xml_id=xml_id)
 		_insert_rubriques(cursor, entry.xml_id, entry.rubriques)
 
 	for flag in flags:
