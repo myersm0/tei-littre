@@ -1,9 +1,9 @@
-"""Binary role classification of continuation/elaboration items using Haiku.
+"""Binary role classification of continuation/elaboration items using Opus.
 
 Usage:
-	ANTHROPIC_API_KEY=sk-... python scripts/llm_binary_review.py data/output/littre.db
-	ANTHROPIC_API_KEY=sk-... python scripts/llm_binary_review.py data/output/littre.db --role domain --limit 200
-	ANTHROPIC_API_KEY=sk-... python scripts/llm_binary_review.py data/output/littre.db --dry-run --limit 5
+	ANTHROPIC_API_KEY=sk-... python scripts/llm_binary_review.py data/littre.db
+	ANTHROPIC_API_KEY=sk-... python scripts/llm_binary_review.py data/littre.db --role locution --limit 100
+	ANTHROPIC_API_KEY=sk-... python scripts/llm_binary_review.py data/littre.db --dry-run --limit 5
 """
 
 import argparse
@@ -134,6 +134,8 @@ def review_batch(
 	system = role_prompts[role]
 	client = Anthropic()
 	results = []
+	total_input_tokens = 0
+	total_output_tokens = 0
 
 	for i, item in enumerate(items):
 		prompt = build_prompt(item)
@@ -152,12 +154,14 @@ def review_batch(
 				system=system,
 				messages=[{"role": "user", "content": prompt}],
 			)
+			total_input_tokens += response.usage.input_tokens
+			total_output_tokens += response.usage.output_tokens
 			answer = response.content[0].text.strip().lower()
 			is_target = answer.startswith("loc")
 			tag = f"← {role.upper()}" if is_target else ""
 			print(
 				f"[{i + 1}/{len(items)}] {item['headword']:20} "
-				f"pipeline={item['role']:15} haiku={answer:4} {tag}"
+				f"pipeline={item['role']:15} opus={answer:4} {tag}"
 			)
 
 			results.append({
@@ -165,7 +169,7 @@ def review_batch(
 				"headword": item["headword"],
 				"content": item["content_plain"][:200],
 				"pipeline_role": item["role"],
-				"haiku_answer": answer,
+				"opus_answer": answer,
 				"is_target": is_target,
 			})
 
@@ -177,9 +181,15 @@ def review_batch(
 				"sense_id": item["sense_id"],
 				"headword": item["headword"],
 				"pipeline_role": item["role"],
-				"haiku_answer": f"ERROR:{exc}",
+				"opus_answer": f"ERROR:{exc}",
 				"is_target": None,
 			})
+
+	if not dry_run:
+		# Opus 4.5 pricing: $5/M input, $25/M output
+		cost = (total_input_tokens * 5 + total_output_tokens * 25) / 1_000_000
+		print(f"\nTokens: {total_input_tokens} input, {total_output_tokens} output")
+		print(f"Estimated cost: ${cost:.4f}")
 
 	return results
 
@@ -212,14 +222,14 @@ def print_summary(results: list[dict], role: str) -> None:
 
 def main():
 	parser = argparse.ArgumentParser()
-	parser.add_argument("db_path", nargs="?", default="data/output/littre.db")
+	parser.add_argument("db_path", nargs="?", default="data/littre.db")
 	parser.add_argument("--role", default="locution", choices=role_prompts.keys())
 	parser.add_argument("--limit", type=int, default=100)
 	parser.add_argument("--dry-run", action="store_true")
 	parser.add_argument("--output", default=None)
 	args = parser.parse_args()
 
-	output_path = args.output or f"llm_binary_{args.role}.json"
+	output_path = args.output or f"llm_opus_{args.role}.json"
 
 	print(f"Binary review: is it a {args.role}?")
 	print(f"Fetching {args.limit} items from {args.db_path}...")
