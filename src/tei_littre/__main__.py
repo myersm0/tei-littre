@@ -15,6 +15,7 @@ from tei_littre.scope_transitions import scope_all as scope_transitions
 from tei_littre.collect_flags import collect_flags
 from tei_littre.emit_tei import emit_tei
 from tei_littre.emit_sqlite import emit_sqlite
+from tei_littre.export_dedup_map import export_dedup_map
 
 
 def run(source_dir: str, output_dir: str) -> None:
@@ -79,7 +80,19 @@ def run(source_dir: str, output_dir: str) -> None:
 	print("Phase 7b: Emit SQLite")
 	print("=" * 60)
 	sqlite_path = str(out / "littre.db")
+	Path(sqlite_path).unlink(missing_ok=True)
 	emit_sqlite(entries, flags, sqlite_path)
+
+	print()
+	print("=" * 60)
+	print("Export dedup collision map")
+	print("=" * 60)
+	dedup_path = str(out / "dedup_map.json")
+	dedup_map = export_dedup_map(sqlite_path)
+	import json
+	with open(dedup_path, "w") as f:
+		json.dump(dedup_map, f, ensure_ascii=False, indent=2)
+	print(f"  {len(dedup_map)} collision groups → {dedup_path}")
 
 
 if __name__ == "__main__":
