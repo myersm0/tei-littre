@@ -215,7 +215,7 @@ def _insert_variante(
 				xml_id=child_xml_id)
 		return
 
-	vnum = variante.num or "0"
+	vnum = variante.num or "1"
 	indent_id_base = f"{entry_id}.{vnum}"
 	plain = strip_tags(variante.content) if variante.content else None
 	cursor.execute(

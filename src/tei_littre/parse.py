@@ -262,7 +262,7 @@ def parse_all(source_dir: str) -> list[Entry]:
 			seen[entry.xml_id] += 1
 			entry.xml_id = f"{entry.xml_id}_{seen[entry.xml_id]}"
 		else:
-			seen[entry.xml_id] = 0
+			seen[entry.xml_id] = 1
 
 	print(f"Total: {len(all_entries)} entries")
 	return all_entries

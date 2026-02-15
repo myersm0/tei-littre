@@ -117,20 +117,20 @@ class TestHomographs:
 		assert rows[0]["indent_id"].startswith("degrossi_ie.1.")
 
 	def test_dedup_suffix(self, db):
-		cur = db.execute("SELECT entry_id FROM entries WHERE entry_id = 'damas_1'")
+		cur = db.execute("SELECT entry_id FROM entries WHERE entry_id = 'damas_2'")
 		assert cur.fetchone() is not None
 
 
 class TestUnnumberedVariantes:
 
-	def test_unnumbered_gets_zero(self, db):
+	def test_unnumbered_gets_one(self, db):
 		rows = query_indent_ids(db, "d")
-		assert rows[0]["indent_id"] == "d.0"
+		assert rows[0]["indent_id"] == "d.1"
 
 	def test_unnumbered_children(self, db):
 		rows = query_indent_ids(db, "d")
 		child_ids = [r["indent_id"] for r in rows if "." in r["indent_id"].replace("d.", "", 1)]
-		assert "d.0.1" in child_ids
+		assert "d.1.1" in child_ids
 
 
 class TestEmptyVariantes:
