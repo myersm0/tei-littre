@@ -71,6 +71,76 @@ end
 
 # ── Classify indents ─────────────────────────────────────────────
 
+# ── Verdicts (external classification overrides) ─────────────────
+# CSV with columns: file, line, check, heuristic_role, llm_role, llm_confidence
+# Keyed on (file, line). When present, overrides heuristic classification.
+
+struct Verdict
+	role::IndentRole
+	confidence::Float64
+	check::String
+end
+
+const verdict_key = Tuple{String, Int}
+const VerdictDict = Dict{verdict_key, Verdict}
+
+const role_names = Dict{String, IndentRole}(
+	"Figurative" => Figurative(),
+	"DomainLabel" => DomainLabel(),
+	"NatureLabel" => NatureLabel(),
+	"CrossReference" => CrossReference(),
+	"RegisterLabel" => RegisterLabel(),
+	"Proverb" => Proverb(),
+	"VoiceTransition" => VoiceTransition(),
+	"Locution" => Locution(),
+	"Constructional" => Constructional(),
+	"Elaboration" => Elaboration(),
+	"Continuation" => Continuation(),
+)
+
+function load_verdicts(path::String)::VerdictDict
+	verdicts = VerdictDict()
+	isfile(path) || return verdicts
+	lines = readlines(path)
+	isempty(lines) && return verdicts
+	header = split(first(lines), ',')
+	col = Dict(strip(h) => i for (i, h) in enumerate(header))
+	for line in lines[2:end]
+		isempty(strip(line)) && continue
+		fields = split(line, ',')
+		file = strip(fields[col["file"]])
+		line_num = parse(Int, strip(fields[col["line"]]))
+		check_col = get(col, "check", nothing)
+		check = check_col !== nothing ? strip(get(fields, check_col, "")) : ""
+		role_str = strip(fields[col["llm_role"]])
+		confidence = parse(Float64, strip(fields[col["llm_confidence"]]))
+		role = get(role_names, role_str, nothing)
+		if role === nothing
+			@warn "Unknown role in verdicts" role_str file line_num
+			continue
+		end
+		verdicts[(file, line_num)] = Verdict(role, confidence, check)
+	end
+	@info "Loaded $(length(verdicts)) verdicts from $path"
+	verdicts
+end
+
+function apply_verdict!(indent::Indent, verdicts::VerdictDict)::Bool
+	indent.source === nothing && return false
+	key = (indent.source.file, indent.source.line)
+	verdict = get(verdicts, key, nothing)
+	verdict === nothing && return false
+	if !isempty(verdict.check)
+		plain = strip_tags(indent.content)
+		if !startswith(plain, verdict.check)
+			@warn "Verdict check mismatch" key verdict.check actual=first(plain, 30)
+			return false
+		end
+	end
+	classify!(indent, verdict.role, LlmAssisted, verdict.confidence)
+	true
+end
+
 function classify!(indent::Indent, role::IndentRole, method::ClassificationMethod, confidence::Float64)
 	indent.classification = Classification(role = role, method = method, confidence = confidence)
 end
@@ -195,10 +265,12 @@ end
 
 # ── Combined classifier ──────────────────────────────────────────
 
-function classify_indent!(indent::Indent)
-	classify_deterministic!(indent) || classify_heuristic!(indent)
+function classify_indent!(indent::Indent, verdicts::VerdictDict = VerdictDict())
+	apply_verdict!(indent, verdicts) ||
+		classify_deterministic!(indent) ||
+		classify_heuristic!(indent)
 	for child in indent.children
-		classify_indent!(child)
+		classify_indent!(child, verdicts)
 	end
 end
 
@@ -219,13 +291,13 @@ function _walk_indents(indent::Indent, f::Function)
 	end
 end
 
-function classify_all!(entries::Vector{Entry})
+function classify_all!(entries::Vector{Entry}, verdicts::VerdictDict = VerdictDict())
 	counts = Dict{String, Int}()
 	for entry in entries
 		for el in entry.body
 			if el isa Sense
 				for indent in el.indents
-					classify_indent!(indent)
+					classify_indent!(indent, verdicts)
 				end
 			end
 		end
@@ -303,12 +375,14 @@ end
 
 # ── Combined enrichment entry point ──────────────────────────────
 
-function enrich!(entries::Vector{Entry})
+function enrich!(entries::Vector{Entry}; verdicts_path::Union{Nothing, String} = nothing)
 	@info "Phase 2: Resolve authors"
 	resolve_all_authors!(entries)
 
+	verdicts = verdicts_path !== nothing ? load_verdicts(verdicts_path) : VerdictDict()
+
 	@info "Phase 3: Classify indents"
-	classify_all!(entries)
+	classify_all!(entries, verdicts)
 
 	@info "Phase 4: Extract locutions"
 	extract_all_locutions!(entries)
