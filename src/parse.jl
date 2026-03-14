@@ -14,7 +14,7 @@ end
 # ── Normalization ────────────────────────────────────────────────
 
 function normalize_source(text::String)::String
-	text = replace(text, "<xmlittre" => "<xmlittre xml:space=\"preserve\""; count=1)
+	text = replace(text, "<xmlittre" => "<xmlittre xml:space=\"preserve\""; count = 1)
 	text = replace(text, "nom=\"PROVERBE\"" => "nom=\"PROVERBES\"")
 	text = replace(text, "nom=\"REMARQUES\"" => "nom=\"REMARQUE\"")
 	text = replace(text, r"<span\s+lang=\"la\">(.*?)</span>"s => s"<i lang=\"la\">\1</i>")
@@ -93,18 +93,11 @@ end
 
 function text_content(node::XML.Node)::String
 	buf = IOBuffer()
-	_collect_text!(buf, node)
-	String(take!(buf))
-end
-
-function _collect_text!(buf::IOBuffer, node::XML.Node)
 	for child in XML.children(node)
-		if XML.nodetype(child) == XML.Text
-			print(buf, XML.value(child))
-		elseif XML.nodetype(child) == XML.Element
-			_collect_text!(buf, child)
-		end
+		XML.nodetype(child) == XML.Text || break
+		print(buf, XML.value(child))
 	end
+	String(take!(buf))
 end
 
 function find_child(node::XML.Node, name::String)::Union{Nothing, XML.Node}
