@@ -1,11 +1,11 @@
-# Deep-Littre
+# Deep-Littré
 A deeply structured, computationally enriched edition of Émile Littré's _Dictionnaire de la langue française_ (1872–1877), built on François Gannaz's XMLittré digitization. Available as TEI Lex-0 XML and SQLite.
 
 Littré's dictionary is an important document of French lexicography: 78,600 entries with etymological, historical, and literary citation apparatus, covering the language from Old French through the late 19th century. François Gannaz digitized it as custom XML; this project transforms that XML into [TEI Lex-0](https://dariah-eric.github.io/lexicalresources/pages/TEILex0/TEILex0.html), along with an SQLite database for computational use.
 
 The pipeline is not a mechanical format conversion. Gannaz's XML uses a flat `<indent>` element as an overloaded catch-all for sub-senses, figurative uses, domain labels, locutions, register shifts, cross-references, proverbs, and grammatical transitions. The pipeline classifies each indent by semantic role, extracts canonical forms from locutions, resolves scope ambiguities in grammatical transitions, and emits structured TEI that preserves Littré's semantic hierarchy.
 
-> **Status**: This is still a work in progress. The pipeline produces usable data as-is, but I'm still refining the model and running checks on accuracy. Be sure to review the [Known limitations](#known-limitations) section.
+> **Status**: This is still a work in progress. The pipeline produces usable data as-is, but classification accuracy is still being refined. Be sure to review the [Known limitations](#known-limitations) section.
 
 ## Downloads
 Pre-built data products are attached [coming soon] to each [GitHub release](../../releases):
@@ -31,6 +31,8 @@ Decompress with `gunzip littre.tei.xml.gz` or equivalent.
 **Rubrique preservation** — All rubrique types (étymologie, historique, remarque, supplément, synonyme, proverbes) faithfully emitted with complete content, citations, and structured sub-blocks.
 
 **Supplement integration** — 1,178 supplement entries and supplement variantes marked with `source="supplement"` and integrated into the main entry structure.
+
+**Classification overrides** — Support for LLM-assisted reclassification via external verdicts CSV, keyed on source file and line number for traceability.
 
 
 ## TEI structure
@@ -76,11 +78,11 @@ Key conventions:
 ## SQLite schema
 The SQLite database provides a flat, queryable view of the dictionary:
 
-- **entries**: headword, POS, pronunciation, xml_id, source file, supplement flag
+- **entries**: headword, POS, pronunciation, entry_id, source file, supplement flag
 - **senses**: definition text, sense number, parent entry, indent role classification, `indent_id` (ASCII-normalized path like `defaut.3.1`), `xml_id` (matching the TEI `xml:id` attribute)
 - **citations**: quote text, author (original + resolved), reference, parent sense
 - **locutions**: 13,972 canonical forms keyed to sense_id
-- **review_queue**: pipeline-flagged items for human review (387 items across 5 categories)
+- **review_queue**: pipeline-flagged items for human review
 
 Example queries:
 
@@ -95,117 +97,122 @@ WHERE c.resolved_author = 'MOLIÈRE';
 -- Entries with figurative senses
 SELECT DISTINCT e.headword
 FROM senses s JOIN entries e ON s.entry_id = e.entry_id
-WHERE s.role = 'figurative';
+WHERE s.role = 'Figurative';
 
--- Look up a locution: reading Maupassant, what does "donner dans le panneau" mean?
+-- Look up a locution
 SELECT l.canonical_form, s.content_plain
 FROM locutions l
 JOIN senses s ON l.sense_id = s.sense_id
 WHERE l.canonical_form LIKE '%panneau%';
 ```
 
-The latter query returns:
-```
-Panneaux flottés       | Panneaux flottés, panneaux posés à plat.
-Panneau de sculpture   | Panneau de sculpture, se dit des ornements sculptés dans un panneau.
-Panneau de glace       | Panneau de glace, une glace tenant lieu de panneau.
-Grand panneau          | Grand panneau, le panneau qui sert à fermer la grande écoutille.
-```
-
-It's the locution index that makes this kind of query possible. In the original XML, these are unlabeled `<indent>` elements with no extracted canonical form, so there's no way to search for multi-word expressions without reading entire entries.
 
 ## Building from source
 ### Requirements
 
-- Python 3.11+
-- [lxml](https://lxml.de/) (`pip install lxml`)
+- Julia 1.10+
+- Dependencies are managed via `Project.toml`; run `julia --project=. -e 'using Pkg; Pkg.instantiate()'` to install
 
 ### Running the pipeline
 Place the Gannaz XML source files (`a.xml` through `z.xml`, `a_prep.xml`) in `data/source/`, then:
 
 ```
-PYTHONPATH=src python -m tei_littre data/source data
+julia bin/run_pipeline.jl data/source data/output
 ```
 
-Output: `data/littre.tei.xml` and `data/littre.db`.
+Output: `data/output/littre.tei.xml` and `data/output/littre.db`.
 
-
-### Spot-checker
-A side-by-side TUI for comparing source XML against TEI output:
-
+Optional flags:
 ```
-pip install textual rich
-PYTHONPATH=src python -m tei_littre.spotcheck ENVIE
+julia bin/run_pipeline.jl data/source data/output \
+  --patches patches/patches.toml \
+  --verdicts data/verdicts.csv
 ```
-
-Requires [Textual](https://textual.textualize.io/). Navigate with `j`/`k`, `space`/`b`, `d`/`u`. Sections are color-coded by rubrique type.
 
 ### Tests
 ```
-PYTHONPATH=src python -m pytest tests/
+julia --project=. test/smoke.jl
+julia --project=. test/smoke_enrich.jl
+julia --project=. test/smoke_scope.jl
+julia --project=. test/smoke_tei.jl
+julia --project=. test/smoke_sqlite.jl
 ```
 
 ## Repository structure
 ```
-tei-littre/
-├── src/tei_littre/
-│   ├── model.py               Dataclass definitions
-│   ├── normalize.py            Phase 0: mechanical XML normalization
-│   ├── parse.py                Phase 1: Gannaz XML → internal model
-│   ├── resolve_authors.py      Phase 2: ID. citation resolution
-│   ├── classify_indents.py     Phase 3: indent semantic classification
-│   ├── extract_locutions.py    Phase 4: locution form extraction
-│   ├── scope_transitions.py    Phase 5: transition scope resolution
-│   ├── collect_flags.py        Review flag generation
-│   ├── emit_tei.py             Phase 7a: model → TEI Lex-0 XML
-│   ├── emit_sqlite.py          Phase 7b: model → SQLite
-│   ├── spotcheck.py            Side-by-side TUI spot-checker
-│   └── __main__.py             Pipeline orchestrator
-├── tests/
-│   ├── test_pipeline.py        Core pipeline tests (69)
-│   ├── test_gold.py            Gold-standard classification tests (36, 12 xfail)
-│   └── test_sense_ids.py       Sense ID edge case tests (15)
-├── patches/                    Source XML corrections (applied at normalize time)
-│   ├── cit_tail_splits/        Split <indent> at transition boundaries (15 cases)
-│   ├── missing_homograph_index/ Add sens= to duplicate headwords (e.g. DI-)
-│   └── wrong_terme/            Fix incorrect terme= attributes (e.g. ESQUAQUE)
+deep-littre/
+├── Project.toml
+├── src/
+│   ├── DeepLittre.jl           Module root, using/include/export
+│   ├── model.jl                Type definitions (traits, structs, enums)
+│   ├── parse.jl                Phase 1: Gannaz XML → internal model
+│   ├── enrich.jl               Phases 2–4: author resolution, indent
+│   │                           classification, locution extraction
+│   ├── scope.jl                Phase 5: transition scope resolution
+│   ├── flags.jl                Review flag generation
+│   ├── emit_tei.jl             Model → TEI Lex-0 XML
+│   └── emit_sqlite.jl          Model → SQLite
+├── bin/
+│   └── run_pipeline.jl         CLI entry point
+├── test/
+│   ├── smoke*.jl               Smoke tests for each pipeline stage
+│   └── fixtures/               Synthetic test data
 ├── scripts/
-│   └── llm_review.py           LLM reclassification sweep
+│   └── ...                     Experimental post-processing scripts
+├── patches/
+│   └── patches.toml            Source XML corrections (line-targeted)
 ├── data/
 │   ├── source/                 Gannaz XML files (not tracked)
-│   ├── littre.tei.xml          TEI output (not tracked; see Releases)
-│   └── littre.db               SQLite output (not tracked; see Releases)
-├── LICENSE                     CC-BY-SA 4.0
-└── README.md
+│   └── output/                 Pipeline outputs (not tracked; see Releases)
+├── README.md
+└── LICENSE
 ```
+
+
+## Design notes
+
+### Type system
+Indent roles and rubrique kinds are modeled as trait hierarchies (`abstract type IndentRole end` with concrete singletons like `Figurative`, `DomainLabel`, etc.). This enables Julia's multiple dispatch for the emitters — each role gets its own `emit_indent` method rather than a monolithic match/case.
+
+The `Sense`/`TransitionGroup` split (both subtypes of `BodyElement`) cleanly separates regular senses from grammatical transition containers, avoiding the "one struct with dead fields" antipattern.
+
+### Immutability with targeted mutation
+Most types are immutable structs. `Indent` and `Citation` are mutable because enrichment phases modify their `classification`, `canonical_form`, and `resolved_author` fields in place. `Entry.id` is a `Ref{String}` to allow deduplication without reconstructing entire entries.
+
+### Patches
+Source corrections are line-targeted string replacements in TOML format, applied in memory during parse. The constraint is that patches never add or remove lines, so source line numbers are invariant — enabling `SourceLocation` (file + line) on every indent as both a debugging aid and a stable key for classification overrides.
+
+### Classification overrides (verdicts)
+LLM-assisted reclassification results are loaded from a CSV keyed on `(file, line)`. They take precedence over heuristic classification but are applied during the same pass. An optional `check` column verifies that the content at the specified line matches expectations.
 
 
 ## Known limitations
 
 - **Résumé blocks**: 96 long entries have tables of contents (`<résumé>` in source) currently emitted as placeholders.
-- **Large-scope transitions**: 8 entries (DONNER, FAIRE, etc.) have grammatical transitions that scope over >15 senses. Manually reviewed but may need refinement.
-- **Mid-text usage labels**: ~730 inline `<usg>` elements remain inside `<def>` where they appear mid-sentence (reflexive verb patterns like "Se damner, `<usg>v. réfl.</usg>` Attirer sur soi..."). These are structurally correct for their context.
+- **Large-scope transitions**: 3 entries have grammatical transitions scoping over >15 senses.
+- **Mid-text usage labels**: ~730 inline `<usg>` elements remain inside `<def>` where they appear mid-sentence.
 - **Locution def deduplication**: Canonical form text is sometimes repeated in the `<def>` element.
-- **Locution under-detection**: An estimated ~12,000 locutions are currently misclassified as continuation/elaboration. See `tests/test_gold.py` for 12 xfail tests tracking this. A fix is under development.
-- **Source data errors**: Gannaz's XML contains a small number of errors including missing homograph indices (e.g. DI- appears twice without `sens=`), incorrect `terme` attributes (ESQUAQUE used for -ESQUE), and accent-collision headwords (31 pairs). These will be corrected incrementally via patches in `patches/`.
+- **Locution under-detection**: An estimated ~12,000 locutions are currently misclassified as continuation/elaboration. LLM-assisted reclassification is underway.
+- **Source data errors**: Gannaz's XML contains a small number of errors including missing homograph indices, incorrect `terme` attributes, and accent-collision headwords (31 pairs). These are corrected via `patches/patches.toml`.
 
 
 ## Entry and sense IDs
 Entry IDs are ASCII-normalized from the headword: accents stripped, special characters replaced with underscores (`DÉGOÛTÉ, ÉE` → `degoute_ee`). Homograph entries in the source XML carry an index via `sens=` attribute (`degrossi_ie.1`, `degrossi.2`).
 
-When multiple entries produce the same normalized ID — either from accent collisions (`DÉGOUT`/`DÉGOÛT` → both `degout`) or missing homograph indices — all occurrences receive a numeric suffix: `degout_1`, `degout_2`. Entries with unique IDs are unaffected.
-
-All TEI elements with semantic content receive `xml:id` attributes: `<entry>`, `<sense>`, `<re type="locution">`, `<re type="proverbe">`, `<note type="xref">`. 43,406 unique IDs with zero duplicates across the d+e development corpus.
+When multiple entries produce the same normalized ID — either from accent collisions (`DÉGOUT`/`DÉGOÛT` → both `degout`) or missing homograph indices — all occurrences receive a numeric suffix: `degout_1`, `degout_2`.
 
 
 ## Source patches
-Corrections to Gannaz's source XML live in `patches/`, organized by error type. Patches are unified diffs applied during the normalize phase, keeping the originals in `data/source/` untouched. Current categories:
+Corrections to Gannaz's source XML live in `patches/patches.toml` as line-targeted string replacements. Patches are applied in memory during parse, keeping the originals in `data/source/` untouched. The constraint is that patches never add or remove lines, preserving source line numbers as stable identifiers.
 
-- **cit_tail_splits**: 15 cases where transition labels (`Absolument.`, `Substantivement.`) appear as bare text between citations inside a single `<indent>`. Patch splits the indent at the transition boundary.
+Current categories:
+
+- **cit_tail_splits**: 15 cases where transition labels (`Absolument.`, `Substantivement.`) appear as bare text between citations inside a single `<indent>`. Patch splits the indent at the transition boundary on the same line.
 - **missing_homograph_index**: Entries like DI- that appear twice without `sens=` attributes to distinguish them.
 - **wrong_terme**: Entries where the `terme` attribute doesn't match the actual headword (e.g. `-ESQUE` entered as `ESQUAQUE`).
 
 Additional source errors are expected to surface as the full corpus is processed. Patches can be added incrementally; the pipeline rebuilds deterministically from patched sources.
+
 
 ## Source data
 This project builds on:
