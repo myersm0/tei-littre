@@ -125,7 +125,6 @@ Output: `data/output/littre.tei.xml` and `data/output/littre.db`.
 Optional flags:
 ```
 julia bin/run_pipeline.jl data/source data/output \
-  --patches patches/patches.toml \
   --verdicts data/verdicts.csv
 ```
 
