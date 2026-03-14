@@ -1,5 +1,7 @@
 module DeepLittre
 
+using JSON3
+using SQLite
 using TOML
 using Unicode
 using XML
@@ -29,5 +31,8 @@ export scope_all!
 
 include("emit_tei.jl")
 export emit_tei
+
+include("emit_sqlite.jl")
+export emit_sqlite
 
 end
