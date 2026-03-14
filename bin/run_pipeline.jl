@@ -1,5 +1,4 @@
 #!/usr/bin/env julia
-
 using ArgParse
 using DeepLittre
 
@@ -9,6 +8,9 @@ function parse_args_pipeline()
 		description = "Deep-Littré pipeline: parse → enrich → scope → emit",
 	)
 
+	project_root = joinpath(@__DIR__, "..")
+	default_patches = joinpath(project_root, "patches", "patches.toml")
+
 	@add_arg_table! settings begin
 		"source_dir"
 			help = "directory containing Gannaz XML source files (a.xml–z.xml)"
@@ -17,9 +19,9 @@ function parse_args_pipeline()
 			help = "directory for output files (littre.tei.xml, littre.db)"
 			required = true
 		"--patches"
-			help = "path to patches.toml"
+			help = "path to patches.toml (default: patches/patches.toml if it exists)"
 			arg_type = String
-			default = nothing
+			default = isfile(default_patches) ? default_patches : nothing
 		"--verdicts"
 			help = "path to verdicts CSV (LLM classification overrides)"
 			arg_type = String
@@ -36,8 +38,11 @@ function main()
 	output_dir = args["output_dir"]
 	mkpath(output_dir)
 
+	patches_path = args["patches"]
+	patches_path !== nothing && @info "Using patches: $patches_path"
+
 	@info "Phase 1: Parse"
-	entries = parse_all(source_dir; patches_path = args["patches"])
+	entries = parse_all(source_dir; patches_path)
 
 	@info "Phases 2–4: Enrich"
 	enrich!(entries; verdicts_path = args["verdicts"])
