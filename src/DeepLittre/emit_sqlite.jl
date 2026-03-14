@@ -243,7 +243,6 @@ function emit_sqlite(entries::Vector{Entry}, output_path::String;
 	isfile(output_path) && rm(output_path)
 	db = SQLite.DB(output_path)
 
-	SQLite.execute(db, "PRAGMA journal_mode=WAL")
 	SQLite.execute(db, "PRAGMA synchronous=NORMAL")
 
 	for stmt in split(schema_sql, ';')
@@ -252,25 +251,27 @@ function emit_sqlite(entries::Vector{Entry}, output_path::String;
 		SQLite.execute(db, stripped)
 	end
 
-	SQLite.transaction(db) do
-		for entry in entries
-			entry_id = entry.id[]
-			SQLite.execute(db,
-				"INSERT INTO entries (entry_id, headword, homograph_index, pronunciation, pos, is_supplement, source_letter) VALUES (?, ?, ?, ?, ?, ?, ?)",
-				(entry_id, entry.headword, entry.homograph_index,
-				 maybe(entry.pronunciation), maybe(entry.pos),
-				 entry.is_supplement ? 1 : 0, maybe(entry.source_letter)))
+	SQLite.execute(db, "BEGIN TRANSACTION")
 
-			for (i, el) in enumerate(entry.body)
-				xml_id = "$(entry_id)_s$(i)"
-				insert_body_element!(db, entry_id, nothing, el, 0, xml_id)
-			end
+	for entry in entries
+		entry_id = entry.id[]
+		SQLite.execute(db,
+			"INSERT INTO entries (entry_id, headword, homograph_index, pronunciation, pos, is_supplement, source_letter) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			(entry_id, entry.headword, entry.homograph_index,
+			 maybe(entry.pronunciation), maybe(entry.pos),
+			 entry.is_supplement ? 1 : 0, maybe(entry.source_letter)))
 
-			insert_rubriques!(db, entry_id, entry.rubriques)
+		for (i, el) in enumerate(entry.body)
+			xml_id = "$(entry_id)_s$(i)"
+			insert_body_element!(db, entry_id, nothing, el, 0, xml_id)
 		end
 
-		insert_flags!(db, flags)
+		insert_rubriques!(db, entry_id, entry.rubriques)
 	end
+
+	insert_flags!(db, flags)
+
+	SQLite.execute(db, "COMMIT")
 
 	for stmt in split(fts_sql, ';')
 		stripped = strip(stmt)
@@ -280,7 +281,7 @@ function emit_sqlite(entries::Vector{Entry}, output_path::String;
 
 	row_counts = Dict{String, Int}()
 	for table in ("entries", "senses", "citations", "locutions", "rubriques", "review_queue")
-		result = SQLite.execute(db, "SELECT COUNT(*) FROM $table") |> first
+		result = DBInterface.execute(db, "SELECT COUNT(*) FROM $table") |> first
 		row_counts[table] = first(result)
 	end
 	SQLite.close(db)

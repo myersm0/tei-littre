@@ -1,5 +1,6 @@
 module DeepLittre
 
+using DBInterface
 using JSON3
 using SQLite
 using TOML
