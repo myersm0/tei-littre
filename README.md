@@ -125,6 +125,7 @@ Output: `data/output/littre.tei.xml` and `data/output/littre.db`.
 Optional flags:
 ```
 julia bin/run_pipeline.jl data/source data/output \
+  --patches patches/patches.toml \
   --verdicts data/verdicts.csv
 ```
 
@@ -157,6 +158,7 @@ deep-littre/
 │   ├── smoke*.jl               Smoke tests for each pipeline stage
 │   └── fixtures/               Synthetic test data
 ├── scripts/
+│   ├── triage_collisions.jl    Detect ID collisions, draft patches
 │   └── ...                     Experimental post-processing scripts
 ├── patches/
 │   └── patches.toml            Source XML corrections (line-targeted)
@@ -206,11 +208,11 @@ Corrections to Gannaz's source XML live in `patches/patches.toml` as line-target
 
 Current categories:
 
-- **cit_tail_splits**: 15 cases where transition labels (`Absolument.`, `Substantivement.`) appear as bare text between citations inside a single `<indent>`. Patch splits the indent at the transition boundary on the same line.
-- **missing_homograph_index**: Entries like DI- that appear twice without `sens=` attributes to distinguish them.
-- **wrong_terme**: Entries where the `terme` attribute doesn't match the actual headword (e.g. `-ESQUE` entered as `ESQUAQUE`).
+- **cit_tail_splits** (15 patches): Transition labels (`Absolument.`, `Substantivement.`) appear as bare text between citations inside a single `<indent>`. Patch splits the indent at the transition boundary on the same line.
+- **missing_homograph_index** (26 patches): Entries that appear multiple times without `sens=` attributes to distinguish them (e.g. ACIDE adj./s. m., CLAUDE s. m./s. f., DI- préfixe). Also includes duplicate `sens=` values (CAME, CULOT, PÉKIN).
+- **wrong_terme** (6 patches): Entries where the `terme` attribute doesn't match the actual headword. Includes suffix entries mislabeled with the preceding headword (ESQUAQUE→-ESQUE, GÉNIE→-GÉNIE, INDUVIE→-INE, OYEN→-OYER) and a probable copy error (second ALTAVELLE→ALTE). These errors originate in the upstream `littre.txt`, not in Gannaz's XML conversion.
 
-Additional source errors are expected to surface as the full corpus is processed. Patches can be added incrementally; the pipeline rebuilds deterministically from patched sources.
+Additional source errors are expected to surface as the full corpus is processed. Patches can be added incrementally; the pipeline rebuilds deterministically from patched sources. A triage script (`scripts/triage_collisions.jl`) automates detection of ID collisions and drafts patches for the mechanical cases.
 
 
 ## Source data
