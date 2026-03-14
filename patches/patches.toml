@@ -128,12 +128,237 @@ new = "</indent><indent>Familièrement."
 
 ## Other fixes
 
-# Line 109270: Incorrect headword ESQUAQUE, should be -ESQUE
+# Auto-drafted patches for missing homograph indices
+# Review before adding to patches/patches.toml
+
+# ACIDE (same headword ACIDE, different POS: adj., s. m.)
 [[patches]]
-file = "e.xml"
-line = 109270
-old = '<entree terme="ESQUAQUE">'
-new = '<entree terme="-ESQUE">'
+file = "a.xml"
+line = 15140
+old = '<entree terme="ACIDE">'
+new = '<entree terme="ACIDE" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 15166
+old = '<entree terme="ACIDE">'
+new = '<entree terme="ACIDE" sens="2">'
+
+# ADULTÈRE (same headword ADULTÈRE, different POS: , s. m.)
+[[patches]]
+file = "a.xml"
+line = 21535
+old = '<entree terme="ADULTÈRE">'
+new = '<entree terme="ADULTÈRE" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 21570
+old = '<entree terme="ADULTÈRE">'
+new = '<entree terme="ADULTÈRE" sens="2">'
+
+# AÉRER (same headword AÉRER, different POS: v. a., v. n.)
+[[patches]]
+file = "a.xml"
+line = 22227
+old = '<entree terme="AÉRER">'
+new = '<entree terme="AÉRER" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 22259
+old = '<entree terme="AÉRER">'
+new = '<entree terme="AÉRER" sens="2">'
+
+# AFFÉRENT, ENTE (same headword AFFÉRENT, ENTE, same POS adj. — likely missing sens=)
+[[patches]]
+file = "a.xml"
+line = 24331
+old = '<entree terme="AFFÉRENT, ENTE">'
+new = '<entree terme="AFFÉRENT, ENTE" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 24369
+old = '<entree terme="AFFÉRENT, ENTE">'
+new = '<entree terme="AFFÉRENT, ENTE" sens="2">'
+
+# AGRÉGÉ (same headword AGRÉGÉ, same POS s. m. — likely missing sens=)
+[[patches]]
+file = "a.xml"
+line = 30700
+old = '<entree terme="AGRÉGÉ">'
+new = '<entree terme="AGRÉGÉ" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 30715
+old = '<entree terme="AGRÉGÉ">'
+new = '<entree terme="AGRÉGÉ" sens="2">'
+
+# AIDE (same headword AIDE, different POS: s. f., s. m. et f.)
+[[patches]]
+file = "a.xml"
+line = 31996
+old = '<entree terme="AIDE">'
+new = '<entree terme="AIDE" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 32109
+old = '<entree terme="AIDE">'
+new = '<entree terme="AIDE" sens="2">'
+
+# AIGLON (same headword AIGLON, same POS s. m. — likely missing sens=)
+[[patches]]
+file = "a.xml"
+line = 32654
+old = '<entree terme="AIGLON">'
+new = '<entree terme="AIGLON" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 32682
+old = '<entree terme="AIGLON">'
+new = '<entree terme="AIGLON" sens="2">'
+
+# AILE (same headword AILE, same POS s. f. — likely missing sens=)
+[[patches]]
+file = "a.xml"
+line = 34283
+old = '<entree terme="AILE">'
+new = '<entree terme="AILE" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 34415
+old = '<entree terme="AILE">'
+new = '<entree terme="AILE" sens="2">'
+
+# ALLIER (same headword ALLIER, different POS: v. a., s. m.)
+[[patches]]
+file = "a.xml"
+line = 43759
+old = '<entree terme="ALLIER">'
+new = '<entree terme="ALLIER" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 43828
+old = '<entree terme="ALLIER">'
+new = '<entree terme="ALLIER" sens="2">'
+
+[[patches]]
+# Second ALTAVELLE is wrong terme, probably supposed to be ALTE (cross-ref to HALTE)
+file = "a.xml"
+line = 46086
+old = '<entree terme="ALTAVELLE">'
+new = '<entree terme="ALTE">'
+
+# ANSE (same headword ANSE, same POS s. f. — likely missing sens=)
+[[patches]]
+file = "a.xml"
+line = 63268
+old = '<entree terme="ANSE">'
+new = '<entree terme="ANSE" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 63314
+old = '<entree terme="ANSE">'
+new = '<entree terme="ANSE" sens="2">'
+
+# ANTITROPE (same headword ANTITROPE, different POS: s. m., adj.)
+[[patches]]
+file = "a.xml"
+line = 67544
+old = '<entree terme="ANTITROPE">'
+new = '<entree terme="ANTITROPE" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 67559
+old = '<entree terme="ANTITROPE">'
+new = '<entree terme="ANTITROPE" sens="2">'
+
+# ATHLÉTIQUE (same headword ATHLÉTIQUE, different POS: s. f., adj.)
+[[patches]]
+file = "a.xml"
+line = 100589
+old = '<entree terme="ATHLÉTIQUE">'
+new = '<entree terme="ATHLÉTIQUE" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 100604
+old = '<entree terme="ATHLÉTIQUE">'
+new = '<entree terme="ATHLÉTIQUE" sens="2">'
+
+# ATTIQUE (same headword ATTIQUE, different POS: adj., s. m.)
+[[patches]]
+file = "a.xml"
+line = 104288
+old = '<entree terme="ATTIQUE">'
+new = '<entree terme="ATTIQUE" sens="1">'
+
+[[patches]]
+file = "a.xml"
+line = 104313
+old = '<entree terme="ATTIQUE">'
+new = '<entree terme="ATTIQUE" sens="2">'
+
+# BRAVE (same headword BRAVE, different POS: adj., )
+[[patches]]
+file = "b.xml"
+line = 70224
+old = '<entree terme="BRAVE">'
+new = '<entree terme="BRAVE" sens="1">'
+
+[[patches]]
+file = "b.xml"
+line = 70300
+old = '<entree terme="BRAVE">'
+new = '<entree terme="BRAVE" sens="2">'
+
+# Third CAME homograph has duplicate sens="2", should be sens="3"
+[[patches]]
+file = "c.xml"
+line = 12186
+old = '<entree terme="CAME" sens="2">'
+new = '<entree terme="CAME" sens="3">'
+
+# CÉLOTOME (same headword CÉLOTOME, different POS: s. m., s. f.)
+[[patches]]
+file = "c.xml"
+line = 42274
+old = '<entree terme="CÉLOTOME">'
+new = '<entree terme="CÉLOTOME" sens="1">'
+
+[[patches]]
+file = "c.xml"
+line = 42289
+old = '<entree terme="CÉLOTOME">'
+new = '<entree terme="CÉLOTOME" sens="2">'
+
+# CLAUDE (same headword CLAUDE, different POS: s. m., s. f.)
+[[patches]]
+file = "c.xml"
+line = 95120
+old = '<entree terme="CLAUDE">'
+new = '<entree terme="CLAUDE" sens="1">'
+
+[[patches]]
+file = "c.xml"
+line = 95137
+old = '<entree terme="CLAUDE">'
+new = '<entree terme="CLAUDE" sens="2">'
+
+# CULOT (fix duplicate 'sens="1"')
+[[patches]]
+file = "c.xml"
+line = 212786
+old = '<entree terme="CULOT" sens="1">'
+new = '<entree terme="CULOT" sens="2">'
 
 ## Homographs needing a `sens` attribute to distinguish them:
 [[patches]]
@@ -148,15 +373,77 @@ line = 83629
 old = '<entree terme="DI-">'
 new = '<entree terme="DI-" sens="2">'
 
+# Line 109270: Incorrect headword ESQUAQUE, should be -ESQUE
+[[patches]]
+file = "e.xml"
+line = 109270
+old = '<entree terme="ESQUAQUE">'
+new = '<entree terme="-ESQUE">'
 
+# GARDE-ROBE (same headword GARDE-ROBE, different POS: s. f., s. m.)
+[[patches]]
+file = "g.xml"
+line = 11240
+old = '<entree terme="GARDE-ROBE">'
+new = '<entree terme="GARDE-ROBE" sens="1">'
 
+[[patches]]
+file = "g.xml"
+line = 11309
+old = '<entree terme="GARDE-ROBE">'
+new = '<entree terme="GARDE-ROBE" sens="2">'
 
+# Suffix entry, not the noun GÉNIE
+[[patches]]
+file = "g.xml"
+line = 21224
+old = '<entree terme="GÉNIE">'
+new = '<entree terme="-GÉNIE">'
 
+# Suffix entry -INE, not INDUVIE
+[[patches]]
+file = "i.xml"
+line = 35220
+old = '<entree terme="INDUVIE">'
+new = '<entree terme="-INE">'
 
+# Suffix entry -OYER, not OYEN
+[[patches]]
+file = "o.xml"
+line = 44564
+old = '<entree terme="OYEN">'
+new = '<entree terme="-OYER">'
 
+# PÉKIN ('sens="1"' is duplicated)
+[[patches]]
+file = "p.xml"
+line = 49597
+old = '<entree terme="PÉKIN" sens="1">'
+new = '<entree terme="PÉKIN" sens="2">'
 
+# QUARTO (same headword QUARTO, different POS: adv., s. m.)
+[[patches]]
+file = "q.xml"
+line = 3749
+old = '<entree terme="QUARTO">'
+new = '<entree terme="QUARTO" sens="1">'
 
+[[patches]]
+file = "q.xml"
+line = 3764
+old = '<entree terme="QUARTO">'
+new = '<entree terme="QUARTO" sens="2">'
 
+# TORRENT (same headword TORRENT, same POS s. m. — likely missing sens=)
+[[patches]]
+file = "t.xml"
+line = 50544
+old = '<entree terme="TORRENT">'
+new = '<entree terme="TORRENT" sens="1">'
 
-
+[[patches]]
+file = "t.xml"
+line = 50555
+old = '<entree terme="TORRENT">'
+new = '<entree terme="TORRENT" sens="2">'
 
