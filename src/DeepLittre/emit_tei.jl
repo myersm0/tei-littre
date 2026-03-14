@@ -20,7 +20,7 @@ function markup_to_tei(markup::String)::String
 	lowercase_usg_content(result)
 end
 
-function lowercase_usg_content(s::String)::String
+function lowercase_usg_content(s::AbstractString)::String
 	buf = IOBuffer()
 	last_end = 1
 	for m in eachmatch(r"(<usg\b[^>]*>)(.*?)(</usg>)"s, s)
@@ -32,14 +32,14 @@ function lowercase_usg_content(s::String)::String
 	String(take!(buf))
 end
 
-function lowercase_text_nodes(s::String)::String
+function lowercase_text_nodes(s::AbstractString)::String
 	join(
 		startswith(part, '<') ? part : lowercase(part)
 		for part in split_preserving(s, r"<[^>]+>")
 	)
 end
 
-function split_preserving(s::String, pattern::Regex)::Vector{String}
+function split_preserving(s::AbstractString, pattern::Regex)::Vector{String}
 	parts = String[]
 	last_end = 1
 	for m in eachmatch(pattern, s)
@@ -61,7 +61,7 @@ end
 
 # ── Label splitting ──────────────────────────────────────────────
 
-function split_label(tei_content::String)::Tuple{String, String}
+function split_label(tei_content::AbstractString)::Tuple{String, String}
 	m = match(r"^<gramGrp><gram\b[^>]*>(.*?)</gram></gramGrp>\s*"s, tei_content)
 	if m !== nothing
 		label = lowercase(strip_usg_tags(strip(m.captures[1])))
@@ -82,7 +82,7 @@ function split_label(tei_content::String)::Tuple{String, String}
 	(lowercase_text_nodes(strip_usg_tags(tei_content)), "")
 end
 
-function split_def_usg(tei_content::String)::Tuple{Vector{String}, String}
+function split_def_usg(tei_content::AbstractString)::Tuple{Vector{String}, String}
 	usg_elements = String[]
 	remaining = tei_content
 	while true

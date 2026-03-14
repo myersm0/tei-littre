@@ -90,6 +90,22 @@ function attr(node::XML.Node, key::String, default::String = "")::String
 	attrs === nothing ? default : get(attrs, key, default)
 end
 
+function text_content(node::XML.Node)::String
+	buf = IOBuffer()
+	_collect_text!(buf, node)
+	String(take!(buf))
+end
+
+function _collect_text!(buf::IOBuffer, node::XML.Node)
+	for child in XML.children(node)
+		if XML.nodetype(child) == XML.Text
+			print(buf, XML.value(child))
+		elseif XML.nodetype(child) == XML.Element
+			_collect_text!(buf, child)
+		end
+	end
+end
+
 function find_child(node::XML.Node, name::String)::Union{Nothing, XML.Node}
 	for child in XML.children(node)
 		XML.nodetype(child) == XML.Element && XML.tag(child) == name && return child
@@ -260,11 +276,11 @@ function parse_entry(node::XML.Node, letter::String, ctx::ParseContext)::Entry
 	if entete !== nothing
 		pron_el = find_child(entete, "prononciation")
 		if pron_el !== nothing
-			pronunciation = strip(XML.simple_value(pron_el))
+			pronunciation = strip(text_content(pron_el))
 		end
 		nature_el = find_child(entete, "nature")
 		if nature_el !== nothing
-			pos = strip(XML.simple_value(nature_el))
+			pos = strip(text_content(nature_el))
 		end
 	end
 
