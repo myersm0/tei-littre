@@ -191,12 +191,39 @@ function flag_calibration_sample!(flags::Vector{ReviewFlag}, entries::Vector{Ent
 	end
 end
 
+const likely_locution_pattern = r"^(Loc\.\s|Locution)"i
+
+function flag_likely_locutions!(flags::Vector{ReviewFlag}, entries::Vector{Entry})
+	for entry in entries
+		for sense in all_senses(entry)
+			for indent in sense.indents
+				role_of(indent) isa Locution && continue
+				plain = strip_tags(indent.content)
+				occursin(likely_locution_pattern, plain) || continue
+				push!(flags, ReviewFlag(
+					entry_id = entry.id[],
+					headword = entry.headword,
+					phase = "phase3",
+					flag_type = "likely_locution",
+					reason = "starts with Loc./Locution but classified as $(typeof(role_of(indent)))",
+					context = Dict{String, Any}(
+						"sense_num" => sense.num,
+						"indent_content" => first(indent.content, 200),
+						"current_role" => string(typeof(role_of(indent))),
+					),
+				))
+			end
+		end
+	end
+end
+
 # ── Entry point ──────────────────────────────────────────────────
 
 function collect_flags(entries::Vector{Entry})::Vector{ReviewFlag}
 	flags = ReviewFlag[]
 	flag_low_confidence!(flags, entries)
 	flag_skipped_locutions!(flags, entries)
+	flag_likely_locutions!(flags, entries)
 	flag_scope_decisions!(flags, entries)
 	flag_calibration_sample!(flags, entries)
 

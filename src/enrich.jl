@@ -169,6 +169,11 @@ function classify_deterministic!(indent::Indent)::Bool
 		return true
 	end
 
+	if occursin("<exemple>", c)
+		classify!(indent, Locution(), Deterministic, 1.0)
+		return true
+	end
+
 	if occursin("<a ref=", c)
 		plain = strip_tags(c)
 		if length(plain) < 120
@@ -194,13 +199,9 @@ const proverb_pattern = r"^(Prov\.|Proverbe|Proverbialement)"i
 
 const voice_transition_pattern = r"^(V\.\s*(n|a|réfl)|Se\s+conjugue|Absolument|Substantivement|Adverbialement|Adjectivement|Intransitivement|Neutralement|Impersonnellement|Activement|Au\s+pluriel|Au\s+féminin|Au\s+singulier|Au\s+masc|Au\s+fém|Avec\s+un\s+nom\s+de)"
 
-const locution_intro_pattern = r"^(<exemple>|Loc\.\s|Locution)"i
-
 const definition_like_pattern = r"^(Se dit|Il se dit|On dit|On appelle|Se disait|Qui se dit|Il s'est dit|Celui qui|Celle qui|Ce qui|Chose qui|Action de|État de|Qualité de|Nom (donné|que l'on donne)|Terme (de|d')|En termes? (de|d'))"i
 
 const cross_ref_heuristic = r"^(Il est|C'est|On dit|Se dit).{0,40}<a ref="
-
-const sentence_start_pattern = r"^(Il|On|Se|C'|Qui|Que|Ce|La|Le|Les|Un|Une|Des) "
 
 function classify_heuristic!(indent::Indent)::Bool
 	c = indent.content
@@ -221,11 +222,6 @@ function classify_heuristic!(indent::Indent)::Bool
 		return true
 	end
 
-	if occursin("<exemple>", c) || occursin(locution_intro_pattern, c)
-		classify!(indent, Locution(), Heuristic, 0.8)
-		return true
-	end
-
 	if occursin("<a ref=", c) && occursin(cross_ref_heuristic, c)
 		classify!(indent, CrossReference(), Heuristic, 0.8)
 		return true
@@ -238,15 +234,6 @@ function classify_heuristic!(indent::Indent)::Bool
 
 	if startswith(plain, "Fig.")
 		classify!(indent, Figurative(), Heuristic, 0.9)
-		return true
-	end
-
-	if length(plain) < 100 &&
-			isempty(indent.citations) &&
-			occursin(',', plain) &&
-			occursin(r"^[A-Z]", plain) &&
-			!occursin(sentence_start_pattern, plain)
-		classify!(indent, Locution(), Heuristic, 0.6)
 		return true
 	end
 
