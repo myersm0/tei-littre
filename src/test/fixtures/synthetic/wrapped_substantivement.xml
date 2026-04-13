@@ -1,0 +1,12 @@
+<entree terme="TESTWRAPSUB">
+<entete>
+	<prononciation>test-wrap-sub</prononciation>
+	<nature>s. m.</nature>
+</entete>
+<corps>
+<variante num="1">Emploi principal.
+<indent><nature>Substantivement.</nature></indent>
+</variante>
+<variante num="2">Emploi suivant.</variante>
+</corps>
+</entree>
