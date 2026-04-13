@@ -4,7 +4,6 @@ This document specifies the observable behavior of each pipeline phase.
 
 Entry point: `run_pipeline.jl` calls `parse_all` → `enrich!` → `scope_all!` → `collect_flags` → `emit_tei` / `emit_sqlite`.
 
-
 ## Phase 1: Parse
 
 **Input**: A directory of Gannaz XML files (`a.xml`–`z.xml`, `a_prep.xml`), and optionally a patches TOML file.
@@ -150,6 +149,8 @@ Operates on the raw markup content string (not stripped of tags):
 
 The checks are tried in this order; first match wins.
 
+**Important**: the presence of `<nature>` takes precedence over any heuristic interpretation of the inner text. For example, `<nature>Substantivement.</nature>` is always classified as NatureLabel (deterministic, confidence 1.0), even though the plain text `Substantivement.` would otherwise match the VoiceTransition heuristic.
+
 ### Tier 2: Heuristic (text patterns)
 
 Operates on both the raw content and the plain-text (stripped) content:
@@ -159,6 +160,8 @@ Operates on both the raw content and the plain-text (stripped) content:
 | Starts with proverb marker (`Prov.`, `Proverbe`, `Proverbialement`) | Proverb | 0.9 |
 | Starts with register label (large pattern: `Populaire`, `Familièrement`, `Vulgairement`, `Par extension`, `Néologisme`, `Vieux`, etc.) | RegisterLabel | 0.85 |
 | Starts with voice/grammatical transition (`V. n`, `V. a`, `V. réfl`, `Se conjugue`, `Absolument`, `Substantivement`, `Au pluriel`, etc.) | VoiceTransition | 0.85 |
+
+These heuristic patterns are only reached if no deterministic rule fired. In particular, text wrapped in `<nature>` will have already been classified as NatureLabel by the deterministic tier, so it never reaches these patterns.
 | Contains `<a ref=` (raw) and matches cross-ref heuristic (`Il est`/`C'est`/`On dit`/`Se dit` + short gap + `<a ref=`) | CrossReference | 0.8 |
 | Starts with definition-like phrase (`Se dit`, `Terme de`, `Celui qui`, `Action de`, `Nom donné`, etc.) | Elaboration | 0.75 |
 | Starts with `Fig.` | Figurative | 0.9 |
@@ -187,9 +190,23 @@ Only processes indents currently classified as `Locution`. For each:
 
 **Input/output**: mutates `Entry.body` (replacing/reordering `BodyElement`s) and `Sense.indents` (reparenting indents under transitions).
 
+Scope resolution produces three possible outcomes for a transition indent:
+
+- **Inter-sense scope**: a terminal VoiceTransition indent opens a `TransitionGroup` over subsequent senses in the entry body. Handled in pass 1 (5a).
+- **Intra-sense scope**: a NatureLabel or VoiceTransition indent absorbs subsequent sibling indents within the same sense as its children. Handled in pass 2 (5b).
+- **No scope**: the transition indent remains a leaf node (e.g. terminal with nothing following, or already absorbed by another transition). No restructuring.
+
+Note: inter-sense scoping considers only VoiceTransition, whereas intra-sense scoping considers both NatureLabel and VoiceTransition. This asymmetry is intentional: NatureLabel transitions (e.g. `<nature>Substantivement.</nature>`) partition usage within a sense but do not open new top-level entry structure.
+
 ### 5a. Inter-sense scoping
 
-Processes each entry's body sequentially, looking for senses whose **last indent** is a `VoiceTransition` with no citations. When found:
+Processes each entry's body sequentially, looking for senses that carry a terminal transition. A terminal transition is an indent that is:
+
+1. The final indent in the sense's indent list.
+2. Classified as VoiceTransition.
+3. Has no citations attached.
+
+All three conditions must hold. When found:
 
 1. **Scope boundary**: scan forward through subsequent body elements. The scope ends just before the next sense that also has a trailing `VoiceTransition` (with no citations), or at end of body.
 
@@ -203,6 +220,8 @@ Processes each entry's body sequentially, looking for senses whose **last indent
 4. **Restructuring**: the transition indent is removed from the source sense. A `TransitionGroup` is created wrapping the scoped body elements. Both the (now shorter) source sense and the new group are emitted to the new body.
 
 5. **Large-scope warning**: if a group scopes more than 15 senses, it is logged as ambiguous.
+
+Inter-sense scoping examines only the last indent of each sense. A VoiceTransition indent that appears at a non-terminal position within a sense (e.g. `Substantivement, ...` followed by further indents) is never considered for inter-sense scoping; it is handled exclusively by intra-sense scoping in pass 2.
 
 ### 5b. Intra-sense scoping
 
@@ -255,7 +274,7 @@ Each `IndentRole` has a dedicated `emit_indent` method:
 - **Locution**: `<re type="locution">` with optional `<form><orth>` for canonical form.
 - **Proverb**: `<re type="proverbe">`.
 - **CrossReference**: `<note type="xref">`.
-- **NatureLabel / VoiceTransition**: if the indent has children, citations, or definition text, emits `<sense>` with `<usg type="gram">` label. Otherwise emits a bare `<usg type="gram">` element.
+- **NatureLabel / VoiceTransition**: if the indent has children, citations, or definition text, emits `<sense>` with `<usg type="gram">` label. Otherwise emits a bare `<usg type="gram">` element. After intra-sense scoping, transition indents that absorbed followers always have children and therefore always emit as `<sense>` elements.
 - **Elaboration / Continuation / Constructional**: default `<sense>` with any leading `<usg>` elements extracted.
 
 ### TransitionGroup dispatch
@@ -293,7 +312,7 @@ Body elements map to `senses` rows:
 - `TransitionGroup` → `sense_type='grammatical_variant'` (strong) or `'usage_group'` (medium), with `transition_type`, `transition_form`, `transition_pos`.
 - `Indent` → `sense_type` derived from role (e.g. `'figurative'`, `'locution'`, `'domain'`, `'cross_reference'`, `'annotation'` for childless NatureLabel/VoiceTransition, `'transition_group'` for those with children, `'sense'` for Elaboration/Continuation/Constructional and fallback).
 
-All insertions are recursive: each indent's children produce child rows with `parent_sense_id` pointing to the parent's auto-incremented `sense_id`, and `depth` incremented.
+All insertions are recursive: each indent's children produce child rows with `parent_sense_id` pointing to the parent's auto-incremented `sense_id`, and `depth` incremented. After scope resolution, the indent hierarchy (including intra-sense grouping) is reflected in the `parent_sense_id` and `depth` columns.
 
 ### Locutions
 
@@ -317,7 +336,7 @@ Flags are generated post-scope-resolution and record items for human review.
 - **low_confidence**: indents with `confidence ≤ 0.5` in a semantic role (Figurative, DomainLabel, Locution, Proverb, CrossReference, RegisterLabel, VoiceTransition, NatureLabel). Includes neighboring indent context.
 - **skipped_locution**: indents classified as Locution but with empty `canonical_form`.
 - **likely_locution**: indents *not* classified as Locution but whose plain text starts with `Loc.` or `Locution`.
-- **scope_decision**: every `TransitionGroup` in the body, recording scope type, count, and boundary content.
+- **scope_decision**: every `TransitionGroup` in the body (both strong and medium), recording scope type, count, and boundary content.
 - **large_scope**: subset of scope_decision where scoped senses > 15.
 - **large_intra_scope**: intra-sense transitions with > 5 children.
 - **calibration_sample**: stratified random sample of 5 indents per (role, method) bucket, seeded deterministically (`seed=42`).
