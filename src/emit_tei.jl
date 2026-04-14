@@ -94,6 +94,36 @@ function split_def_usg(tei_content::AbstractString)::Tuple{Vector{String}, Strin
 	(usg_elements, remaining)
 end
 
+# ── Gram splitting (two-step: structural split, then classify) ───
+
+struct GramSplit
+	pre_text::String
+	label_text::String
+	def_text::String
+	pre_kind::Symbol
+end
+
+function split_gram(tei_content::AbstractString)::GramSplit
+	m = match(r"(.*?)<usg type=\"gram\">(.*?)</usg>(.*)"s, tei_content)
+	m === nothing && return GramSplit("", "", "", :none)
+	pre_raw = strip(replace(strip(m.captures[1]), r"[,;:\s]+$" => ""))
+	label = strip(m.captures[2])
+	def_raw = strip(replace(strip(m.captures[3]), r"^[,;:\s]+" => ""))
+	pre_kind = classify_pre_text(pre_raw, label)
+	GramSplit(pre_raw, label, def_raw, pre_kind)
+end
+
+function classify_pre_text(pre_text::AbstractString, label_text::AbstractString)::Symbol
+	isempty(pre_text) && return :none
+	if match(r"^[Ss][e''\u2019]", pre_text) !== nothing && occursin("réfl", label_text)
+		return :reflexive_form
+	end
+	if occursin(r"loc\.\s*(adv|prépos|conj)|locut\."i, label_text)
+		return :locution_form
+	end
+	:headword_echo
+end
+
 # ── XML helpers ──────────────────────────────────────────────────
 
 function id_attr(sense_id::String)::String
@@ -235,13 +265,41 @@ end
 
 function emit_indent(io::IO, indent::Indent, role::Union{NatureLabel, VoiceTransition}, level::Int, sense_id::String)
 	content = markup_to_tei(indent.content)
-	label, def_text = split_label(content)
-	if !isempty(indent.children) || !isempty(def_text) || !isempty(indent.citations)
-		emit_label_sense(io, label, "gram", def_text,
-			indent.citations, indent.children, level; sense_id)
-	else
-		println(io, "$(pad(level))<usg type=\"gram\">$(label)</usg>")
+	gs = split_gram(content)
+
+	if isempty(gs.label_text)
+		label, def_text = split_label(content)
+		if !isempty(indent.children) || !isempty(def_text) || !isempty(indent.citations)
+			emit_label_sense(io, label, "gram", def_text,
+				indent.citations, indent.children, level; sense_id)
+		else
+			println(io, "$(pad(level))<usg type=\"gram\">$(label)</usg>")
+		end
+		return
 	end
+
+	has_body = !isempty(gs.def_text) || !isempty(indent.citations) || !isempty(indent.children)
+	if !has_body && gs.pre_kind == :none
+		println(io, "$(pad(level))<usg type=\"gram\">$(gs.label_text)</usg>")
+		return
+	end
+
+	p = pad(level)
+	println(io, "$(p)<sense$(id_attr(sense_id))>")
+	if gs.pre_kind in (:reflexive_form, :locution_form)
+		println(io, "$(p)  <form><orth>$(escape_xml(strip_tags(gs.pre_text)))</orth></form>")
+	end
+	println(io, "$(p)  <usg type=\"gram\">$(gs.label_text)</usg>")
+	if !isempty(gs.def_text)
+		usg_els, clean_def = split_def_usg(gs.def_text)
+		for el in usg_els
+			println(io, "$(p)  $(el)")
+		end
+		!isempty(clean_def) && println(io, "$(p)  <def>$(clean_def)</def>")
+	end
+	emit_citations(io, indent.citations, level + 1)
+	emit_children(io, indent.children, level + 1, sense_id)
+	println(io, "$(p)</sense>")
 end
 
 function emit_indent(io::IO, indent::Indent, ::Union{Elaboration, Continuation, Constructional}, level::Int, sense_id::String)
