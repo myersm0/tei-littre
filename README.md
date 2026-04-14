@@ -232,6 +232,18 @@ This project builds on:
 
 The underlying text is the *Dictionnaire de la langue française* by Émile Littré, published by Hachette in four volumes (1872–1877) with a supplement (1877). The original text is in the public domain.
 
+## Citing Deep-Littré
+A paper describing Deep-Littré is in preparation. In the meantime, if you use Deep-Littré in published research, please cite:
+```bibtex
+@software{myers-montre,
+  author       = {Myers, Michael J.},
+  title        = {Deep-Littré: Structural Recovery from a Flat Encoding",
+  year         = {2026},
+  url          = {https://github.com/myersm0/deep-littre},
+  version      = {0.6.0}
+}
+```
+
 
 ## License
 CC-BY-SA 4.0. See [LICENSE](LICENSE).
