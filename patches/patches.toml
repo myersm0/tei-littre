@@ -447,3 +447,63 @@ line = 50555
 old = '<entree terme="TORRENT">'
 new = '<entree terme="TORRENT" sens="2">'
 
+
+## The following 9 are missing a period and/or a nature label:
+
+[[patches]]
+file = "g.xml"
+line = 9083
+old = "<indent>Familièrement Je vous le garantis, soyez-en sûr."
+new = "<indent>Familièrement. Je vous le garantis, soyez-en sûr."
+
+[[patches]]
+file = "g.xml"
+line = 44306
+old = "<indent>Substantivement C'est un gradué."
+new = "<indent><nature>Substantivement</nature>. C'est un gradué."
+
+[[patches]]
+file = "i.xml"
+line = 26778
+old = "<indent>Substantivement Les incontinents."
+new = "<indent><nature>Substantivement</nature>. Les incontinents."
+
+[[patches]]
+file = "m.xml"
+line = 90195
+old = "<indent>Absolument Le maître de la maison, dans la bouche d'autres personnes que les domestiques de la maison. Monsieur est-il chez lui ? je voudrais lui parler."
+new = "<indent><nature>Absolument</nature>. Le maître de la maison, dans la bouche d'autres personnes que les domestiques de la maison. Monsieur est-il chez lui ? je voudrais lui parler."
+
+[[patches]]
+file = "p.xml"
+line = 72147
+old = "<indent>Absolument Ce boulanger pétrit bien."
+new = "<indent><nature>Absolument</nature>. Ce boulanger pétrit bien."
+
+[[patches]]
+file = "r.xml"
+line = 20111
+old = "<indent>Substantivement C'est un ratier."
+new = "<indent><nature>Substantivement</nature>. C'est un ratier."
+
+[[patches]]
+file = "r.xml"
+line = 68687
+old = "<indent>Absolument Vous n'avez pas de constance, il ne faut pas renoncer sitôt. C'est un homme entêté qui ne renonce jamais."
+new = "<indent><nature>Absolument</nature>. Vous n'avez pas de constance, il ne faut pas renoncer sitôt. C'est un homme entêté qui ne renonce jamais."
+
+[[patches]]
+file = "u.xml"
+line = 5898
+old = "<indent>Familièrement Ce drap fera beaucoup d'usage, il durera beaucoup ; il devient plus beau par l'usage, il prend, porté, une plus belle apparence."
+new = "<indent>Familièrement. Ce drap fera beaucoup d'usage, il durera beaucoup ; il devient plus beau par l'usage, il prend, porté, une plus belle apparence."
+
+[[patches]]
+file = "v.xml"
+line = 13684
+old = "<indent>Populairement Elle aura quinze ans viennent les prunes, l'été prochain."
+new = "<indent>Populairement. Elle aura quinze ans viennent les prunes, l'été prochain."
+
+
+
+
