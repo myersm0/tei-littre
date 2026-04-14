@@ -1,8 +1,15 @@
+# This test file exercises the full pipeline on a one letter (e.xml).
+# It verifies end-to-end behavior (parse → enrich → scope → emit),
+# but does not exhaustively test edge cases.
+#
+# Detailed structural and scoping edge cases are tested separately
+# in the synthetic and regression fixture tests.
+
 using Test
 using DeepLittre
 
-const data_dir = joinpath(@__DIR__, "data")
-const fixture_xml = joinpath(data_dir, "e.xml")
+const data_dir = joinpath(@__DIR__, "fixtures")
+const fixture_xml = joinpath(data_dir, "real", "e.xml")
 
 function parse_fixture()
 	parse_file(fixture_xml)
