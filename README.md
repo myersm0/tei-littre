@@ -1,4 +1,8 @@
 # Deep-Littré
+
+[![CI](https://github.com/myersm0/deep-littre/actions/workflows/ci.yml/badge.svg)](https://github.com/myersm0/deep-littre/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/myersm0/deep-littre)](https://github.com/myersm0/deep-littre/releases/latest)
+
 A deeply structured, computationally enriched edition of Émile Littré's _Dictionnaire de la langue française_ (1872–1877), built on François Gannaz's XMLittré digitization. Available as TEI Lex-0 XML and SQLite.
 
 Littré's dictionary is an important document of French lexicography: 78,600 entries with etymological, historical, and literary citation apparatus, covering the language from Old French through the late 19th century. François Gannaz digitized it as custom XML; this project transforms that XML into [TEI Lex-0](https://dariah-eric.github.io/lexicalresources/pages/TEILex0/TEILex0.html), along with an SQLite database for computational use.
