@@ -10,9 +10,7 @@ struct RegisterLabel <: IndentRole end
 struct Proverb <: IndentRole end
 struct VoiceTransition <: IndentRole end
 struct Locution <: IndentRole end
-struct Constructional <: IndentRole end
-struct Elaboration <: IndentRole end
-struct Continuation <: IndentRole end
+struct Unclassified <: IndentRole end
 
 
 # ── Rubrique kinds (trait hierarchy, dispatched on in emitters) ───
@@ -39,7 +37,6 @@ end
 @kwdef struct Classification
 	role::IndentRole
 	method::ClassificationMethod
-	confidence::Float64
 end
 
 
@@ -111,7 +108,7 @@ Sense(source::Sense; is_supplement::Bool) = Sense(
 )
 
 @kwdef struct TransitionGroup <: BodyElement
-	kind::Symbol  # :strong or :medium
+	kind::Symbol
 	form::String = ""
 	pos::String = ""
 	transition_content::String = ""
