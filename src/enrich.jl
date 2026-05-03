@@ -233,7 +233,7 @@ const figurative_patterns = [
 
 const voice_transition_label_only_patterns = [
 	r"^au (pluriel|féminin|singulier|masc(\.|ulin)?|fém(\.|inin)?)\.?\s*$"i,
-	r"^avec un nom de\b.*\.?\s*$"i,
+	r"^avec un nom de [^,.]*\.?\s*$"i,
 ]
 
 const register_label_only_patterns = [
