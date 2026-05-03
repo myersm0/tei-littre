@@ -7,11 +7,11 @@ A deeply structured, computationally enriched edition of Émile Littré's _Dicti
 
 Littré's dictionary is an important document of French lexicography: 78,600 entries with etymological, historical, and literary citation apparatus, covering the language from Old French through the late 19th century. François Gannaz digitized it as custom XML; this project transforms that XML into [TEI Lex-0](https://dariah-eric.github.io/lexicalresources/pages/TEILex0/TEILex0.html), along with an SQLite database for computational use.
 
-The pipeline is not a mechanical format conversion. Gannaz's XML uses a flat `<indent>` element as an overloaded catch-all for sub-senses, figurative uses, domain labels, locutions, register shifts, cross-references, proverbs, and grammatical transitions. The pipeline classifies each indent by semantic role, extracts canonical forms from locutions, resolves scope ambiguities in grammatical transitions, and emits structured TEI that preserves Littré's semantic hierarchy.
+The pipeline is not a mechanical format conversion. Gannaz's XML uses a flat `<indent>` element as an overloaded catch-all for sub-senses, figurative uses, domain labels, locutions, register shifts, cross-references, proverbs, and grammatical transitions. The pipeline classifies each indent by semantic role under a strict certain-or-Unclassified regime, extracts canonical forms from locutions, resolves scope ambiguities in grammatical transitions, and emits structured TEI that preserves Littré's semantic hierarchy.
 
 An introduction and walkthrough of some example entries can be found in my blog post [here](https://myersm0.github.io/maupassant-study/blog/2026-04-intro-to-littre-1/), towards explaining the two formats (SQL and TEI-XML) and many of Littré's notational conventions.
 
-> **Status**: This is still a work in progress. The pipeline produces usable data as-is, but classification accuracy is still being refined. Be sure to review the [Known limitations](#known-limitations) section.
+> **Status**: This is still a work in progress. The pipeline produces usable data as-is, but classification coverage is still being refined. Be sure to review the [Known limitations](#known-limitations) section.
 
 ## Downloads
 Pre-built data products are attached [coming soon] to each [GitHub release](../../releases):
@@ -24,11 +24,11 @@ Pre-built data products are attached [coming soon] to each [GitHub release](../.
 Decompress with `gunzip littre.tei.xml.gz` or equivalent.
 
 ## Enrichments over the source
-**Structural classification** — 86,942 flat `<indent>` blocks classified into semantic roles: definitions, figurative senses, domain labels (`Terme de marine`, `Terme de musique`), register labels (`familièrement`, `populairement`), locutions, proverbs, cross-references, nature labels (`s. m.`, `adj.`), and voice transitions (`v. réfl.`). 100% coverage.
+**Structural classification** — 86,957 flat `<indent>` blocks classified into semantic roles: figurative senses, domain labels (`Terme de marine`, `Terme de musique`), register labels (`familièrement`, `populairement`, `par extension`), locutions, proverbs, cross-references, nature labels (`s. m.`, `adj.`), and voice transitions (`v. réfl.`). Indents that no rule matches with certainty are marked `Unclassified` for downstream review rather than being given a best-guess label. 100% coverage; ~33% of indents currently land in a real role, the remainder in `Unclassified`.
 
-**Author resolution** — 41,579 "ID." (idem) citations resolved to the actual author by backward scan through the citation chain.
+**Author resolution** — 41,434 "ID." (idem) citations resolved to the actual author by backward scan through the citation chain.
 
-**Locution extraction** — 13,972 canonical forms extracted from locution definitions (e.g., `Avoir envie` from a locution indent under ENVIE).
+**Locution extraction** — Canonical forms extracted from explicitly marked locution definitions (`<exemple>` in source, e.g., `Avoir envie` from a locution under ENVIE).
 
 **Scope resolution** — Grammatical transitions (`Se donner, v. réfl.`, `Substantivement`, `Impersonnellement`) scoped to the correct set of following senses and restructured as nested entries or sense groups.
 
@@ -80,6 +80,8 @@ Key conventions:
 - `type` attribute values use French where the content is French (`historique`, `figuré`, `supplément`)
 - TEI element names and standard vocabulary stay English (part of the TEI standard)
 - Author abbreviations preserved as-is in display; resolved forms in `<author>` elements
+- Indents the classifier could not assign with certainty are emitted as `<sense ana="unclassified">…</sense>`, queryable by XPath as a review surface
+
 
 ## SQLite schema
 Full schema documentation is available [here](docs/schema.md).
@@ -87,10 +89,10 @@ Full schema documentation is available [here](docs/schema.md).
 The SQLite database provides a flat, queryable view of the dictionary:
 
 - **entries**: headword, POS, pronunciation, entry_id, source file, supplement flag
-- **senses**: definition text, sense number, parent entry, indent role classification, `indent_id` (ASCII-normalized path like `defaut.3.1`), `xml_id` (matching the TEI `xml:id` attribute)
+- **senses**: definition text, sense number, parent entry, indent role classification (with `sense_type = 'unclassified'` for indents no rule matched), `indent_id` (ASCII-normalized path like `defaut.3.1`), `xml_id` (matching the TEI `xml:id` attribute)
 - **citations**: quote text, author (original + resolved), reference, parent sense
-- **locutions**: 13,972 canonical forms keyed to sense_id
-- **review_queue**: pipeline-flagged items for human review
+- **locutions**: canonical forms keyed to sense_id
+- **review_queue**: pipeline-flagged items for human review (top-level unclassified indents, scope decisions, etc.)
 
 Example queries:
 
@@ -105,7 +107,12 @@ WHERE c.resolved_author = 'MOLIÈRE';
 -- Entries with figurative senses
 SELECT DISTINCT e.headword
 FROM senses s JOIN entries e ON s.entry_id = e.entry_id
-WHERE s.role = 'Figurative';
+WHERE s.sense_type = 'figurative';
+
+-- All unclassified indents (working surface for review)
+SELECT e.headword, s.content_plain
+FROM senses s JOIN entries e ON s.entry_id = e.entry_id
+WHERE s.sense_type = 'unclassified';
 
 -- Look up a locution
 SELECT l.canonical_form, s.content_plain
@@ -181,9 +188,14 @@ deep-littre/
 ## Design notes
 
 ### Type system
-Indent roles and rubrique kinds are modeled as trait hierarchies (`abstract type IndentRole end` with concrete singletons like `Figurative`, `DomainLabel`, etc.). This enables Julia's multiple dispatch for the emitters — each role gets its own `emit_indent` method rather than a monolithic match/case.
+Indent roles and rubrique kinds are modeled as trait hierarchies (`abstract type IndentRole end` with concrete singletons like `Figurative`, `DomainLabel`, `Unclassified`, etc.). This enables Julia's multiple dispatch for the emitters — each role gets its own `emit_indent` method rather than a monolithic match/case.
 
 The `Sense`/`TransitionGroup` split (both subtypes of `BodyElement`) cleanly separates regular senses from grammatical transition containers, avoiding the "one struct with dead fields" antipattern.
+
+### Strict certain-or-Unclassified classification
+Phase 3 follows a strict certainty regime. Classification rules either match enough structural signal to be definitively right, or the indent is left `Unclassified` for downstream review. There is no confidence axis. The `Unclassified` role is a first-class member of the `IndentRole` hierarchy, dispatched on like any other; the alternative — using `nothing` for unmatched indents — would have scattered null checks through downstream code and lost the dispatch uniformity.
+
+This regime trades exhaustive role coverage for high precision. The `Unclassified` bucket is the working surface for follow-up — clustered LLM analysis, new tightened rules, or manual review — rather than a fictional classification baked into the output.
 
 ### Immutability with targeted mutation
 Most types are immutable structs. `Indent` and `Citation` are mutable because enrichment phases modify their `classification`, `canonical_form`, and `resolved_author` fields in place. `Entry.id` is a `Ref{String}` to allow deduplication without reconstructing entire entries.
@@ -197,11 +209,11 @@ LLM-assisted reclassification results are loaded from a CSV keyed on `(file, lin
 
 ## Known limitations
 
+- **Unclassified bucket**: ~58,500 of 86,957 indents (~67%) currently fall into `Unclassified`. This is by design — under the strict regime, indents are left unclassified rather than given a best-guess label. The set is queryable via `senses.sense_type = 'unclassified'` and is the working surface for ongoing classification work (new rule additions, LLM-assisted review).
 - **Résumé blocks**: 96 long entries have tables of contents (`<résumé>` in source) currently emitted as placeholders.
 - **Large-scope transitions**: 3 entries have grammatical transitions scoping over >15 senses.
 - **Mid-text usage labels**: ~730 inline `<usg>` elements remain inside `<def>` where they appear mid-sentence.
 - **Locution def deduplication**: Canonical form text is sometimes repeated in the `<def>` element.
-- **Locution under-detection**: An estimated ~12,000 locutions are currently misclassified as continuation/elaboration. LLM-assisted reclassification is underway.
 - **Source data errors**: Gannaz's XML contains a small number of errors including missing homograph indices, incorrect `terme` attributes, and accent-collision headwords (31 pairs). These are corrected via `patches/patches.toml`.
 
 

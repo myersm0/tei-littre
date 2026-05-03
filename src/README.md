@@ -119,56 +119,55 @@ Author resolution is scoped to each entry independently. The `last_author` reset
 
 ## Phase 3: Indent classification
 
-**Input/output**: mutates `Indent.classification` in place. After this phase, every indent has a non-null classification.
+**Input/output**: mutates `Indent.classification` in place. After this phase, every indent has a non-null classification — either to a real role or to `Unclassified`.
 
 Classification is recursive: after classifying a parent indent, all of its children are classified.
 
-Three tiers are tried in order. The first to succeed wins.
+The classifier follows a **certain-or-Unclassified** regime: rules either match enough structural signal to be definitively right, or the indent is left `Unclassified` for downstream review. There is no confidence axis. Three tiers are tried in order; the first to succeed wins.
 
 ### Tier 0: Verdicts (external overrides)
 
-Loaded from a CSV keyed on `(file, line)`. Columns: `file`, `line`, `check` (optional), `heuristic_role`, `llm_role`, `llm_confidence`. The `llm_role` and `llm_confidence` columns are used; `heuristic_role` is informational.
+Loaded from a CSV keyed on `(file, line)`. Columns: `file`, `line`, `check` (optional), `heuristic_role`, `llm_role`. The `llm_role` column is used; `heuristic_role` is informational. An `llm_confidence` column is tolerated if present (legacy schema) but ignored — confidence is no longer part of the model.
 
 If a verdict exists for the indent's source location:
 
 - If a `check` value is present and the indent's plain-text content does not start with it, the verdict is rejected with a warning.
-- Otherwise, the indent is classified with the verdict's role, method `LlmAssisted`, and the verdict's confidence.
+- Otherwise, the indent is classified with the verdict's role and method `LlmAssisted`.
 
-### Tier 1: Deterministic (tag-based)
+### Tier A: Deterministic (tag-based)
 
 Operates on the raw markup content string (not stripped of tags):
 
-| Condition | Role | Confidence |
-|-----------|------|------------|
-| Contains `<semantique type="indicateur">Fig.` | Figurative | 1.0 |
-| Contains `<semantique type="domaine">` | DomainLabel | 1.0 |
-| Contains `<nature>` | NatureLabel | 1.0 |
-| Contains `<exemple>` | Locution | 1.0 |
-| Contains `<a ref=`, plain text < 120 chars, starts with `voy.`/`V.`/`Voy.`/`voyez` (case-insensitive) | CrossReference | 1.0 |
-| Contains `<a ref=`, plain text < 120 chars, ends with `, voy.` | CrossReference | 0.95 |
+| Condition | Role |
+|-----------|------|
+| Contains `<semantique type="indicateur">Fig.` | Figurative |
+| Contains `<semantique type="domaine">` | DomainLabel |
+| Contains `<nature>` | NatureLabel |
+| Contains `<exemple>` | Locution |
+| Contains `<a ref=`, plain text < 120 chars, starts with `voy.`/`V.`/`Voy.`/`voyez` (case-insensitive) | CrossReference |
+| Contains `<a ref=`, plain text < 120 chars, ends with `, voy.` | CrossReference |
 
 The checks are tried in this order; first match wins.
 
-**Important**: the presence of `<nature>` takes precedence over any heuristic interpretation of the inner text. For example, `<nature>Substantivement.</nature>` is always classified as NatureLabel (deterministic, confidence 1.0), even though the plain text `Substantivement.` would otherwise match the VoiceTransition heuristic.
+**Important**: the presence of `<nature>` takes precedence over any heuristic interpretation of the inner text. For example, `<nature>Substantivement.</nature>` is always classified as NatureLabel, even though the plain text `Substantivement.` would otherwise match the VoiceTransition heuristic.
 
-### Tier 2: Heuristic (text patterns)
+### Tier B: Heuristic (text patterns)
 
-Operates on both the raw content and the plain-text (stripped) content:
+Operates on plain-text (stripped) content. Patterns are organized as `Vector{Regex}` per role with anchored, word-boundary-enforcing patterns. Rules either match definitively or fall through.
 
-| Condition (on plain text unless noted) | Role | Confidence |
-|----------------------------------------|------|------------|
-| Starts with proverb marker (`Prov.`, `Proverbe`, `Proverbialement`) | Proverb | 0.9 |
-| Starts with register label (large pattern: `Populaire`, `Familièrement`, `Vulgairement`, `Par extension`, `Néologisme`, `Vieux`, etc.) | RegisterLabel | 0.85 |
-| Starts with voice/grammatical transition (`V. n`, `V. a`, `V. réfl`, `Se conjugue`, `Absolument`, `Substantivement`, `Au pluriel`, etc.) | VoiceTransition | 0.85 |
+| Condition (on plain text) | Role |
+|---------------------------|------|
+| Starts with proverb marker (`Prov.`, `Proverbe`, `Proverbialement`) | Proverb |
+| Starts with register label (`Populaire(ment)?`, `Familièrement`, `Vulgairement`, `Par extension`, `Par analogie`, `Néologisme`, `Il est familier`, `Mot vieilli`, etc.) | RegisterLabel |
+| Starts with voice/grammatical transition (`V. n`, `V. a`, `V. réfl`, `Se conjugue`, `Absolument`, `Substantivement`, `Adverbialement`, etc.) | VoiceTransition |
+| Starts with `Fig.` followed by whitespace | Figurative |
+| Standalone label `Au pluriel`, `Au féminin`, `Au singulier`, `Au masc(ulin)?`, `Au fém(inin)?`, `Avec un nom de …` (entire indent is the label) | VoiceTransition |
+| Standalone bare register token (`Vieux`, `Vieilli(e)?`, `Bas(se)?`, `Vulgaire`, `Triviale?`, `Inusité(e)?`, `Familièr(e)?`, etc.) — entire indent is the label | RegisterLabel |
+| (Otherwise) | Unclassified |
 
-These heuristic patterns are only reached if no deterministic rule fired. In particular, text wrapped in `<nature>` will have already been classified as NatureLabel by the deterministic tier, so it never reaches these patterns.
-| Contains `<a ref=` (raw) and matches cross-ref heuristic (`Il est`/`C'est`/`On dit`/`Se dit` + short gap + `<a ref=`) | CrossReference | 0.8 |
-| Starts with definition-like phrase (`Se dit`, `Terme de`, `Celui qui`, `Action de`, `Nom donné`, etc.) | Elaboration | 0.75 |
-| Starts with `Fig.` | Figurative | 0.9 |
-| Has at least one citation | Continuation | 0.5 |
-| Non-empty plain text (fallback) | Elaboration | 0.4 |
+The label-only rules are deliberately distinct from the prose-following rules: bare tokens like `Vieux` or `Au pluriel` followed by prose are ambiguous (`Vieux marin de…` could begin an ordinary definition), so they are accepted only when the entire indent content is the label. The "main" register and voice-transition patterns require diagnostic adverbs/constructions that are unambiguous regardless of what follows.
 
-Tried in this order; first match wins.
+Tried in this order; first match wins. Indents matching no pattern are classified as `Unclassified` (method: `Heuristic`).
 
 
 ## Phase 4: Locution extraction
@@ -304,7 +303,7 @@ Each `IndentRole` has a dedicated `emit_indent` method:
 - **Proverb**: `<re type="proverbe">`.
 - **CrossReference**: `<note type="xref">`.
 - **NatureLabel / VoiceTransition**: three paths depending on content shape. (1) When a `<usg type="gram">` element is present (`<nature>`-tagged source), `split_gram` extracts pre-text, label, and definition; `:reflexive_form` and `:locution_form` pre-text emits as `<form><orth>`, `:headword_echo` pre-text is dropped. If `split_gram` finds the label and definition fused inside the tag, `split_bare_transition` sub-splits them. (2) When no `<usg type="gram">` element is present (heuristic classification), `split_bare_transition` splits the bare text at the first separator. Falls back to `split_label` if no known root label matches. (3) Bare `<usg type="gram">`: emitted only when there is no definition text, no citations, and no children.
-- **Elaboration / Continuation / Constructional**: default `<sense>` with any leading `<usg>` elements extracted.
+- **Unclassified**: default `<sense ana="unclassified">` with any leading `<usg>` elements extracted. The `ana="unclassified"` attribute makes these queryable by XPath as the working surface for downstream review.
 
 ### TransitionGroup dispatch
 
@@ -339,7 +338,7 @@ Body elements map to `senses` rows:
 
 - `Sense` → `sense_type='sense'`, with `num`, `is_supplement`, and `indent_id` derived as `{entry_id}.{num || 1}`.
 - `TransitionGroup` → `sense_type='grammatical_variant'` (strong) or `'usage_group'` (medium), with `transition_type`, `transition_form`, `transition_pos`.
-- `Indent` → `sense_type` derived from role (e.g. `'figurative'`, `'locution'`, `'domain'`, `'cross_reference'`, `'annotation'` for childless NatureLabel/VoiceTransition, `'transition_group'` for those with children, `'sense'` for Elaboration/Continuation/Constructional and fallback).
+- `Indent` → `sense_type` derived from role (e.g. `'figurative'`, `'locution'`, `'domain'`, `'cross_reference'`, `'register'`, `'unclassified'`, `'annotation'` for childless NatureLabel/VoiceTransition, `'transition_group'` for those with children, `'sense'` as fallback).
 
 All insertions are recursive: each indent's children produce child rows with `parent_sense_id` pointing to the parent's auto-incremented `sense_id`, and `depth` incremented. After scope resolution, the indent hierarchy (including intra-sense grouping) is reflected in the `parent_sense_id` and `depth` columns.
 
@@ -362,7 +361,7 @@ Flags are generated post-scope-resolution and record items for human review.
 
 ### Flag types
 
-- **low_confidence**: indents with `confidence ≤ 0.5` in a semantic role (Figurative, DomainLabel, Locution, Proverb, CrossReference, RegisterLabel, VoiceTransition, NatureLabel). Includes neighboring indent context.
+- **unclassified**: indents whose role is `Unclassified` (no rule matched). Includes neighboring indent context. Note: only top-level indents under a sense are flagged; nested unclassified children inherit their parent's review status. To enumerate all unclassified indents regardless of nesting depth, query `senses.sense_type = 'unclassified'` directly.
 - **skipped_locution**: indents classified as Locution but with empty `canonical_form`.
 - **likely_locution**: indents *not* classified as Locution but whose plain text starts with `Loc.` or `Locution`.
 - **scope_decision**: every `TransitionGroup` in the body (both strong and medium), recording scope type, count, and boundary content.
